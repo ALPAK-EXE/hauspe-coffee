@@ -63,7 +63,7 @@ export default function Register() {
     if (errors[key]) setErrors((er) => ({ ...er, [key]: undefined }))
   }
 
-  const onSubmit = (ev) => {
+  const onSubmit = async (ev) => {
     ev.preventDefault()
     const found = validate(values, segment)
     setErrors(found)
@@ -83,7 +83,7 @@ export default function Register() {
         businessType: values.businessType,
       })
     }
-    const res = register(payload)
+    const res = await register(payload)
     if (!res.ok) return setFormError(res.error)
     navigate(location.state?.from || '/catalogo', { replace: true })
   }

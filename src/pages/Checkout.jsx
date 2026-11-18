@@ -7,7 +7,38 @@ import { useAuth } from '../context/AuthContext'
 import { nextNumber, useCart } from '../context/CartContext'
 import { makeAlert } from '../data/ops'
 import { createSubs } from '../data/subs'
-import { canBuyRetail, canQuoteExport, fmtPEN, fmtUSD, IGV_RATE, round2, SACK_KG } from '../data/products'
+import { canBuyRetail, canQuoteExport, DESTINATIONS, fmtPEN, fmtUSD, IGV_RATE, round2, SACK_KG, volumeDiscount } from '../data/products'
+import { getDB } from '../db/browser'
+import * as repo from '../db/repo'
+
+const FRECUENCIA = { weekly: 'SEMANAL', biweekly: 'QUINCENAL', monthly: 'MENSUAL' }
+
+// Guarda el pedido en la base de datos: Pedido, DetallePedido, Pago, Comprobante, Entrega y bolsas con QR
+async function guardarEnBD(user, lines, { distrito, opCode }) {
+  const db = getDB()
+  const usd = lines[0].currency === 'USD'
+  const items = lines.map((l) => {
+    const v = repo.varianteDe(db, l.product.id, usd ? null : l.product.weight)
+    if (usd) {
+      const unit = lines.length === 1 ? round2(l.product.pricePerKg * SACK_KG) : round2((l.quote.base - l.quote.discount) / l.item.qty)
+      return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: unit, configuracion: { incoterm: l.item.incoterm, destino: l.item.dest } }
+    }
+    return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: l.unit, configuracion: { molienda: l.item.grind, plan: l.plan.label } }
+  })
+  const plan = lines.find((l) => l.plan && l.plan.id !== 'once')?.plan.id
+  const first = lines[0].item
+  return repo.crearPedido(db, {
+    id_cliente: user.id,
+    items,
+    distrito: usd ? null : distrito,
+    referencia: opCode,
+    frecuencia: FRECUENCIA[plan] || null,
+    incoterm: usd ? first.incoterm : null,
+    pais_destino: usd ? DESTINATIONS.find((d) => d.id === first.dest)?.label : null,
+    flete: usd ? round2(lines.reduce((s, l) => s + l.quote.freight, 0)) : 0,
+    descuentoVolumen: usd && lines.length === 1 ? volumeDiscount(first.qty) : 0,
+  })
+}
 
 
 
@@ -55,6 +86,8 @@ export default function Checkout() {
   const [dni, setDni] = useState('')
   const [errors, setErrors] = useState({})
   const [paying, setPaying] = useState(false)
+  const zonas = repo.listarZonas(getDB())
+  const [distrito, setDistrito] = useState('Villa El Salvador')
   const submitted = useRef(false) // evita pedidos duplicados con doble clic
 
   if (!user) return <Navigate to="/login" state={{ from: '/checkout' }} replace />
@@ -87,6 +120,9 @@ export default function Checkout() {
     )
   }
 
+  const envio = hasPen ? zonas.find((z) => z.distrito === distrito)?.costo_envio || 0 : 0
+  const totalPen = round2(totals.pen + envio)
+
   // Empresa peruana (HORECA) con RUC: factura. Suscriptor: boleta.
   const isInvoice = user.segment === 'b2b'
 
@@ -103,15 +139,26 @@ export default function Checkout() {
     submitted.current = true
     setPaying(true)
     // Simula la validación del pago
-    setTimeout(() => {
-      const total = totals.pen
+    setTimeout(async () => {
+      let dbPedido
+      try {
+        dbPedido = await guardarEnBD(user, lines, { distrito, opCode: code.trim() })
+      } catch (e) {
+        console.error('No se guardó en la base de datos', e)
+        setErrors({ code: `Error de base de datos: ${e.message}` })
+        submitted.current = false
+        setPaying(false)
+        return
+      }
+      const total = totalPen
       const base = round2(total / (1 + IGV_RATE))
       const series = isInvoice ? 'F001' : 'B001'
       const order = {
-        id: 'HP' + Date.now().toString(36).toUpperCase(),
+        id: dbPedido.codigo,
         date: new Date().toISOString(),
         customer: { name: user.name, email: user.email, whatsapp: user.whatsapp, company: user.company, taxId: user.taxId, country: user.country },
-        lines: lines.map(snapshot),
+        lines: envio ? [...lines.map(snapshot), { currency: 'PEN', name: `Envío a ${distrito}`, detail: 'Dark store, entrega en menos de 24 h', qty: 1, unit: envio, total: envio }] : lines.map(snapshot),
+        district: hasPen ? distrito : null,
         totalPen: total,
         totalUsd: totals.usd,
         basePen: hasPen ? base : 0,
@@ -120,13 +167,13 @@ export default function Checkout() {
         doc: hasPen
           ? {
               type: isInvoice ? 'Factura electrónica' : 'Boleta de venta electrónica',
-              number: nextNumber(series),
+              number: dbPedido.numero_comprobante || nextNumber(series),
               customerDoc: isInvoice
                 ? { label: 'RUC', value: user.taxId }
                 : { label: 'DNI', value: dni.trim() || 'Sin DNI (consumidor final)' },
             }
           : null,
-        quote: hasUsd ? { number: nextNumber('COT') } : null,
+        quote: hasUsd ? { number: dbPedido.numero_comprobante || nextNumber('COT') } : null,
         status: hasPen ? 'nuevo' : null,
       }
       order.alerts = hasPen ? [makeAlert('nuevo', order.id)] : []
@@ -161,8 +208,8 @@ export default function Checkout() {
           </ul>
           {hasPen && (
             <>
-              <p className="total-row"><span>Total a pagar con Yape</span><strong>{fmtPEN(totals.pen)}</strong></p>
-              <p className="muted">Precios con IGV incluido (18%).</p>
+              <p className="total-row"><span>Total a pagar con Yape</span><strong>{fmtPEN(totalPen)}</strong></p>
+              <p className="muted">Incluye envío a {distrito} ({fmtPEN(envio)}). Precios con IGV incluido (18%).</p>
             </>
           )}
           {hasUsd && (
@@ -176,13 +223,17 @@ export default function Checkout() {
         <form className="pay" onSubmit={confirm} noValidate>
           {hasPen ? (
             <>
+              <h2 className="display-s">Entrega</h2>
+              <Field label="Distrito de entrega" as="select" value={distrito} onChange={(e) => setDistrito(e.target.value)} hint="Despacho desde nuestra dark store en menos de 24 horas.">
+                {zonas.map((z) => <option key={z.distrito} value={z.distrito}>{z.distrito} ({fmtPEN(z.costo_envio)})</option>)}
+              </Field>
               <h2 className="display-s">Paga con Yape</h2>
               <div className="pay__qr">
-                <FakeQr seed={'yape' + totals.pen} label="QR de Yape de ejemplo" />
+                <FakeQr seed={'yape' + totalPen} label="QR de Yape de ejemplo" />
               </div>
               <ol className="pay__steps">
                 <li>Abre Yape y escanea el código.</li>
-                <li>Paga {fmtPEN(totals.pen)} a HausPe Coffee.</li>
+                <li>Paga {fmtPEN(totalPen)} a HausPe Coffee.</li>
                 <li>Escribe aquí el código de operación.</li>
               </ol>
               <Field

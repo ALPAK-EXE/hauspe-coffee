@@ -14,7 +14,7 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const onSubmit = (ev) => {
+  const onSubmit = async (ev) => {
     ev.preventDefault()
     const found = {}
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) found.email = 'Escribe un correo válido.'
@@ -22,7 +22,7 @@ export default function Login() {
     setErrors(found)
     setFormError('')
     if (Object.keys(found).length) return
-    const res = login(email, password)
+    const res = await login(email, password)
     if (!res.ok) return setFormError(res.error)
     navigate(location.state?.from || '/catalogo', { replace: true })
   }

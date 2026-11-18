@@ -4,17 +4,20 @@ import Field from '../components/Field'
 import QrImage from '../components/QrImage'
 import ReminderChat from '../components/ReminderChat'
 import { passportUrl } from '../config'
-import { getOrders, updateOrder } from '../context/CartContext'
 import { sealChange } from '../data/chain'
-import { STATUS, addHarvest, addRoast, getHarvests, getRoasts, makeAlert, nextStatus } from '../data/ops'
+import { addHarvest, addRoast, getHarvests, getRoasts } from '../data/ops'
 import { passports } from '../data/passports'
-import { fmtPEN } from '../data/products'
 import { REMINDER_DAYS, daysUntil, fmtDay, getAllSubs, isDue, pushChat, reminderText, subInfo, updateSub } from '../data/subs'
+import { BaseDeDatos, ColaPedidos, Crm, DashboardLotes, Trazabilidad } from './OpsDB'
 import { HUMIDITY_RANGE, addReadings, getReadings, outOfRange, simulateReadings } from '../data/telemetry'
 
 const TABS = [
   { id: 'barista', label: 'Barista' },
   { id: 'dark', label: 'Dark store' },
+  { id: 'trazabilidad', label: 'Trazabilidad' },
+  { id: 'lotes', label: 'Lotes IoT' },
+  { id: 'crm', label: 'CRM' },
+  { id: 'bd', label: 'Base de datos' },
   { id: 'cosecha', label: 'Cosecha' },
   { id: 'tueste', label: 'Tueste' },
   { id: 'telemetria', label: 'Telemetría' },
@@ -22,74 +25,10 @@ const TABS = [
   { id: 'qr', label: 'QR por empaque' },
 ]
 const today = () => new Date().toISOString().slice(0, 10)
-const statusLabel = (id) => STATUS.find((s) => s.id === id)?.label || id
-const retailOrders = () => getOrders().filter((o) => o.doc)
 const fmtDate = (iso) => new Date(iso).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })
 const batchOptions = passports.map((p) => (
   <option key={p.code} value={p.code}>{p.code}</option>
 ))
-
-// Cola de pedidos: el barista prepara (nuevo, preparando, listo) y la dark store despacha
-function Queue({ mode }) {
-  const [, refresh] = useState(0)
-  const [courier, setCourier] = useState('Moto propia')
-  const orders = retailOrders().filter((o) => {
-    const s = o.status || 'nuevo'
-    return mode === 'barista' ? s === 'nuevo' || s === 'preparando' : s === 'listo' || s === 'despachado'
-  })
-
-  const advance = (o) => {
-    const status = nextStatus(o.status || 'nuevo')
-    updateOrder(o.id, (cur) => ({
-      status,
-      alerts: [...(cur.alerts || []), makeAlert(status, cur.id, status === 'despachado' ? courier : undefined)],
-    }))
-    refresh((n) => n + 1)
-  }
-
-  if (!orders.length) {
-    return <p className="muted">{mode === 'barista' ? 'No hay pedidos por preparar. Haz una compra de prueba en la tienda.' : 'No hay pedidos listos para despachar.'}</p>
-  }
-  return (
-    <ul className="ops__list">
-      {orders.map((o) => {
-        const s = o.status || 'nuevo'
-        const last = s === 'despachado'
-        return (
-          <li key={o.id} className="ops__item">
-            <div>
-              <strong>Pedido {o.id}</strong>
-              <span className="muted">{fmtDate(o.date)}, {o.customer.name}, {fmtPEN(o.totalPen)}</span>
-              <ul className="ops__lines">
-                {o.lines.filter((l) => l.currency === 'PEN').map((l, i) => (
-                  <li key={`${l.name}-${i}`}>{l.qty} x {l.name}, {l.detail}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="ops__act">
-              <span className={`badge badge--${s}`}>{statusLabel(s)}</span>
-              {!last && (
-                <button type="button" className="btn btn--primary btn--sm" onClick={() => advance(o)}>
-                  {mode === 'barista' ? (s === 'nuevo' ? 'Empezar a preparar' : 'Marcar listo') : 'Despachar'}
-                </button>
-              )}
-              {mode === 'dark' && s === 'listo' && (
-                <label className="ops__courier">
-                  <span>Reparto</span>
-                  <select value={courier} onChange={(e) => setCourier(e.target.value)}>
-                    <option>Moto propia</option>
-                    <option>Courier aliado</option>
-                    <option>Recojo en tienda</option>
-                  </select>
-                </label>
-              )}
-            </div>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
 
 // Registro de cosecha o de tueste: se asocia a un lote, se muestra en su pasaporte y se sella en un bloque nuevo
 function RegisterForm({ kind }) {
@@ -351,12 +290,12 @@ function QrLabels() {
 
 export default function Ops() {
   useTitle('Panel interno')
-  const [tab, setTab] = useState('barista')
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.hash.split('?')[1]).get('tab') || 'barista')
   return (
     <div className="container page ops">
       <header className="page__head">
         <h1 className="display-l">Panel interno</h1>
-        <p className="lead measure">Vista interna de ejemplo para barista, dark store, cosecha, tueste, telemetría, recordatorios y etiquetas QR.</p>
+        <p className="lead measure">Operación de HausPe conectada a la base de datos: barista, dark store, trazabilidad firmada, sensores, CRM y la base de datos SQLite con sus pruebas.</p>
       </header>
       <div className="tabs tabs--wrap" role="tablist" aria-label="Secciones del panel">
         {TABS.map((t) => (
@@ -366,7 +305,11 @@ export default function Ops() {
         ))}
       </div>
       <div id="ops-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        {(tab === 'barista' || tab === 'dark') && <Queue key={tab} mode={tab} />}
+        {(tab === 'barista' || tab === 'dark') && <ColaPedidos key={tab} modo={tab === 'dark' ? 'dark' : 'barista'} />}
+        {tab === 'trazabilidad' && <Trazabilidad />}
+        {tab === 'lotes' && <DashboardLotes />}
+        {tab === 'crm' && <Crm />}
+        {tab === 'bd' && <BaseDeDatos />}
         {tab === 'cosecha' && <RegisterForm key="c" kind="cosecha" />}
         {tab === 'tueste' && <RegisterForm key="t" kind="tueste" />}
         {tab === 'telemetria' && <Telemetry />}
