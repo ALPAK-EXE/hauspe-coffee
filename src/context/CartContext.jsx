@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { load, save } from './storage'
-import { getProduct, PLANS, quoteLot, round2 } from '../data/products'
+import { getProduct, PLANS, quoteLot, round2, sizeOf } from '../data/products'
 
 const CART_KEY = 'hauspe_cart'
 const ORDERS_KEY = 'hauspe_orders'
@@ -16,6 +16,10 @@ const currencyOf = (id) => (getProduct(id)?.kind === 'b2b' ? 'USD' : 'PEN')
 export function priceLine(item) {
   const product = getProduct(item.id)
   if (!product) return null
+  if (product.kind === 'drink') {
+    const size = sizeOf(product, item.size)
+    return { item, product, currency: 'PEN', size, plan: PLANS[0], unit: size.price, saving: 0, total: round2(size.price * item.qty) }
+  }
   if (product.kind === 'b2c') {
     const plan = PLANS.find((p) => p.id === item.plan) || PLANS[0]
     const unit = round2(product.price * (1 - plan.discount))
@@ -80,6 +84,7 @@ export function CartProvider({ children }) {
       const same = (i) =>
         i.id === entry.id &&
         i.grind === entry.grind &&
+        i.size === entry.size &&
         i.plan === entry.plan &&
         i.incoterm === entry.incoterm &&
         i.dest === entry.dest

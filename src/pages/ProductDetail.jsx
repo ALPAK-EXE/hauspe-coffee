@@ -4,9 +4,13 @@ import { useAuth } from '../context/AuthContext'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, QrCode } from '@phosphor-icons/react'
 import CoffeeBag from '../components/CoffeeBag'
+import Glass, { layersOf } from '../components/Glass'
 import { useCart } from '../context/CartContext'
 import {
+  BAG_GRAMS,
   DESTINATIONS,
+  LAYERS,
+  bagInsumos,
   GRIND_OPTIONS,
   canBuyRetail,
   canQuoteExport,
@@ -34,13 +38,14 @@ export default function ProductDetail() {
       </div>
     )
   }
+  if (product.kind === 'drink') return <Drink key={id} drink={product} />
   return product.kind === 'b2c' ? <Retail key={id} product={product} /> : <Lot key={id} lot={product} />
 }
 
-function Back({ b2b }) {
+function Back({ b2b, barra }) {
   return (
-    <Link to={b2b ? '/catalogo?tab=b2b' : '/catalogo'} className="back">
-      <ArrowLeft size={16} /> {b2b ? 'Exportación' : 'Cafés'}
+    <Link to={b2b ? '/catalogo?tab=b2b' : barra ? '/catalogo?tab=barra' : '/catalogo'} className="back">
+      <ArrowLeft size={16} /> {b2b ? 'Exportación' : barra ? 'Cafetería' : 'Cafés'}
     </Link>
   )
 }
@@ -116,7 +121,21 @@ function Retail({ product }) {
               <dt>Presentación</dt>
               <dd>{product.weight}</dd>
             </div>
+            <div>
+              <dt>Variedad y proceso</dt>
+              <dd>{product.variety}, {product.process.toLowerCase()}</dd>
+            </div>
+            <div>
+              <dt>Puntaje SCA</dt>
+              <dd>{product.sca}</dd>
+            </div>
           </dl>
+
+          <Insumos
+            titulo={`Qué lleva cada bolsa de ${BAG_GRAMS} g`}
+            filas={bagInsumos(product)}
+            nota="Grano 100 % arábica de Villa Rica. El gramaje por finca suma el peso neto de la bolsa."
+          />
 
           <div className="buy">
             <label className="buy__field">
@@ -178,6 +197,98 @@ function Retail({ product }) {
           <Link to={`/qr/${product.batch}`} className="text-link">
             <QrCode size={18} /> Ver pasaporte digital del lote
           </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Tabla de insumos con su gramaje; la barra muestra la proporción de cada finca o ingrediente
+function Insumos({ titulo, filas, nota }) {
+  const max = Math.max(...filas.filter((f) => f.unidad !== 'u').map((f) => f.cantidad))
+  return (
+    <section className="insumos" aria-label={titulo}>
+      <h2 className="display-s">{titulo}</h2>
+      <table>
+        <thead><tr><th>Insumo</th><th>Cantidad</th></tr></thead>
+        <tbody>
+          {filas.map((f) => (
+            <tr key={f.nombre}>
+              <td>
+                {f.capa && <i className="insumos__dot" style={{ background: LAYERS[f.capa].color }} aria-hidden="true" />}
+                {f.nombre}
+                {f.unidad !== 'u' && <span className="insumos__bar" style={{ '--w': `${(f.cantidad / max) * 100}%` }} aria-hidden="true" />}
+              </td>
+              <td className="money">{f.cantidad} {f.unidad}{f.pct ? ` (${f.pct} %)` : ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {nota && <p className="muted">{nota}</p>}
+    </section>
+  )
+}
+
+function Drink({ drink }) {
+  const { addItem } = useCart()
+  const { user } = useAuth()
+  const [sizeId, setSizeId] = useState(drink.sizes[0].id)
+  const [qty, setQty] = useState(1)
+  const [mixed, setMixed] = useState(null)
+  const size = drink.sizes.find((z) => z.id === sizeId)
+  const base = getProduct(drink.base)
+  const ml = layersOf(size).reduce((s, c) => s + c.ml, 0)
+  const add = (opts) => {
+    const res = addItem({ id: drink.id, qty, size: sizeId }, opts)
+    setMixed(res.ok ? null : res)
+  }
+  return (
+    <div className="container page">
+      <Back barra />
+      <div className="detail detail--drink">
+        <div className="detail__media detail__media--drink" style={{ '--tint': drink.color }}>
+          <Glass key={drink.id} drink={drink} size={size} />
+          <ul className="glass__legend">
+            {layersOf(size).slice().reverse().map((c) => (
+              <li key={c.key}><i style={{ background: LAYERS[c.key].color }} />{LAYERS[c.key].label}<span>{c.ml} ml</span></li>
+            ))}
+          </ul>
+        </div>
+        <div className="detail__info">
+          <h1 className="display-l">{drink.name}</h1>
+          <p className="lead">{drink.description}</p>
+          <ul className="chips chips--lg" aria-label="Notas de cata">
+            {drink.notes.map((n) => <li key={n}>{n}</li>)}
+          </ul>
+          <fieldset className="buy__plans sizes">
+            <legend>Tamaño</legend>
+            {drink.sizes.map((z) => (
+              <label key={z.id} className={`plan${sizeId === z.id ? ' is-on' : ''}`}>
+                <input type="radio" name="size" checked={sizeId === z.id} onChange={() => setSizeId(z.id)} />
+                <span>{z.label}</span>
+                <small>{fmtPEN(z.price)}</small>
+              </label>
+            ))}
+          </fieldset>
+          <Insumos
+            titulo={`Receta de un ${drink.name.toLowerCase()} ${size.label}`}
+            filas={size.insumos}
+            nota={`Preparado con café ${base.name} (${base.notes.join(', ').toLowerCase()}). Volumen servido: ${ml} ml.`}
+          />
+          <div className="buy">
+            <div className="buy__row">
+              <div className="stepper" role="group" aria-label="Cantidad">
+                <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Restar" disabled={qty <= 1}>-</button>
+                <output>{qty}</output>
+                <button type="button" onClick={() => setQty((q) => Math.min(20, q + 1))} aria-label="Sumar">+</button>
+              </div>
+              <button type="button" className="btn btn--primary buy__add" disabled={!canBuyRetail(user)} onClick={() => add()}>
+                Agregar, {fmtPEN(round2(size.price * qty))}
+              </button>
+            </div>
+            {mixed && <MixedNotice current={mixed.current} onReplace={() => { add({ replace: true }); setMixed(null) }} />}
+          </div>
+          <Link to={`/catalogo/${base.id}`} className="text-link">Comprar el café {base.name} en bolsa</Link>
         </div>
       </div>
     </div>

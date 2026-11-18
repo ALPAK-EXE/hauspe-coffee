@@ -125,6 +125,23 @@ export const PRUEBAS = [
     assert(p.canal === 'POS' && !p.programada_para, 'POS mal registrado')
     return `${p.codigo}: S/ ${p.total}`
   }],
+  ['Insumos', 'Vender 2 lattes de 12 oz descuenta del almacén 36 g de café y 600 ml de leche', async (db) => {
+    const v = repo.varianteDe(db, 'bebida-latte', '12 oz')
+    const stock = (n) => db.get('SELECT stock FROM Insumo WHERE nombre = ?', [n]).stock
+    const cafe0 = stock('Café Casa molido')
+    const leche0 = stock('Leche entera')
+    await repo.crearPedido(db, { canal: 'POS', items: [{ id_variante: v.id_variante, cantidad: 2 }], metodoPago: 'EFECTIVO' })
+    assert(cafe0 - stock('Café Casa molido') === 36, `Café descontado: ${cafe0 - stock('Café Casa molido')} g`)
+    assert(leche0 - stock('Leche entera') === 600, `Leche descontada: ${leche0 - stock('Leche entera')} ml`)
+    const g = repo.recetaDe(db, repo.varianteDe(db, 'casa', '250 g').id_variante).filter((x) => x.unidad === 'g').reduce((s, x) => s + x.cantidad, 0)
+    assert(g === 250, `La bolsa suma ${g} g`)
+    return 'Café −36 g, leche −600 ml; la bolsa de Casa suma 250 g'
+  }],
+  ['Insumos', 'Sin insumos suficientes, la venta se rechaza', async (db) => {
+    db.run(`UPDATE Insumo SET stock = 10 WHERE nombre = 'Café Casa molido'`)
+    const v = repo.varianteDe(db, 'bebida-latte', '12 oz')
+    return rechaza(() => repo.crearPedido(db, { canal: 'POS', items: [{ id_variante: v.id_variante, cantidad: 1 }], metodoPago: 'EFECTIVO' }), 'CHECK')
+  }],
   ['QR bolsa', 'El QR de una bolsa abre el pasaporte del consumidor y su pedido', async (db) => {
     const u = db.get(`SELECT codigo_qr FROM UnidadEmpaque WHERE tipo='BOLSA' AND estado <> 'EN_ALMACEN' LIMIT 1`)
     const pp = await repo.pasaporte(db, u.codigo_qr)

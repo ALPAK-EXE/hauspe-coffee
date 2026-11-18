@@ -27,6 +27,11 @@ export default function Home() {
           </div>
           <div className="hero__art" aria-hidden="true">
             <div className="hero__disc" />
+            <svg className="hero__steam" viewBox="0 0 120 70">
+              <path d="M30 66 C20 50 40 40 30 24 C24 14 32 6 30 2" />
+              <path d="M60 66 C50 48 72 38 60 20 C54 10 62 4 60 0" />
+              <path d="M90 66 C80 50 100 40 90 24 C84 14 92 6 90 2" />
+            </svg>
             <CoffeeBag className="hero__bag hero__bag--a" name="Tarde" color="#5E3B2A" />
             <CoffeeBag className="hero__bag hero__bag--b" name="Origen" color="#C98B3A" />
             <CoffeeBag className="hero__bag hero__bag--c" name="Casa" color="#8A5A3C" />
@@ -39,7 +44,7 @@ export default function Home() {
           <h2 className="display-l measure">Tres cafés para tres momentos del día</h2>
           <p className="lead measure">Tostados en lotes pequeños. Eliges el molido y la frecuencia.</p>
           <ul className="trio">
-            {retailProducts.map((p, i) => (
+            {retailProducts.slice(0, 3).map((p, i) => (
               <li key={p.id} className={`trio__item trio__item--${i + 1}`}>
                 <Link to={`/catalogo/${p.id}`} className="trio__link">
                   <span className="trio__art" style={{ '--tint': p.color }}>

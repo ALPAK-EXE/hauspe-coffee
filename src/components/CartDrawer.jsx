@@ -18,8 +18,30 @@ function Stepper({ value, min = 1, max = 99, onChange, label }) {
   )
 }
 
+function DrinkLine({ line, updateItem, removeItem }) {
+  const { item, product, size } = line
+  return (
+    <li className="cart-line">
+      <div className="cart-line__head">
+        <div>
+          <h3>{product.name}</h3>
+          <p className="muted">{size.label}, bebida de la barra</p>
+        </div>
+        <button type="button" className="icon-btn icon-btn--sm" onClick={() => removeItem(item.key)} aria-label={`Quitar ${product.name}`}>
+          <Trash size={18} />
+        </button>
+      </div>
+      <div className="cart-line__foot">
+        <Stepper value={item.qty} max={20} onChange={(qty) => updateItem(item.key, { qty })} label={`Cantidad de ${product.name}`} />
+        <div className="cart-line__price"><strong>{fmtPEN(line.total)}</strong></div>
+      </div>
+    </li>
+  )
+}
+
 function RetailLine({ line, updateItem, removeItem }) {
   const { item, product } = line
+  if (product.kind === 'drink') return <DrinkLine line={line} updateItem={updateItem} removeItem={removeItem} />
   return (
     <li className="cart-line">
       <div className="cart-line__head">

@@ -1,10 +1,15 @@
 // Pasaporte digital simulado: telemetría IoT y hash "blockchain" de ejemplo
-import { allProducts } from './products'
+import { traceableProducts } from './products'
 
 const EXTRA = {
   casa: { tueste: '12 oct 2026', cosecha: 'Julio 2026', finca: 'Cooperativa Villa Rica' },
   origen: { tueste: '14 oct 2026', cosecha: 'Julio 2026', finca: 'Finca La Esperanza' },
   tarde: { tueste: '11 oct 2026', cosecha: 'Junio 2026', finca: 'Cooperativa Villa Rica' },
+  geisha: { tueste: '3 nov 2026', cosecha: 'Julio 2026', finca: 'Finca La Esperanza' },
+  natural: { tueste: '5 nov 2026', cosecha: 'Junio 2026', finca: 'Finca El Nogal' },
+  'espresso-casa': { tueste: '6 nov 2026', cosecha: 'Julio 2026', finca: 'Blend de Villa Rica' },
+  honey: { tueste: '4 nov 2026', cosecha: 'Junio 2026', finca: 'Finca El Mirador' },
+  descafeinado: { tueste: '2 nov 2026', cosecha: 'Mayo 2026', finca: 'Finca Bajo Sombra' },
 }
 
 function hash(str) {
@@ -32,7 +37,7 @@ function series(seed, base, amp, n = 12) {
   })
 }
 
-export const passports = allProducts.map((p, i) => {
+export const passports = traceableProducts.map((p, i) => {
   const extra = EXTRA[p.id] || {}
   return {
     code: p.batch,

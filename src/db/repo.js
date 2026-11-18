@@ -304,6 +304,16 @@ export function colaDarkStore(hdb) {
   })
 }
 
+export function listarInsumos(hdb) {
+  return hdb.all('SELECT nombre, unidad, stock, stock_minimo, stock <= stock_minimo AS bajo FROM Insumo ORDER BY unidad, nombre')
+}
+
+export function recetaDe(hdb, id_variante) {
+  return hdb.all(
+    'SELECT i.nombre, r.cantidad, i.unidad FROM RecetaInsumo r JOIN Insumo i ON i.id_insumo = r.id_insumo WHERE r.id_variante = ? ORDER BY i.unidad, i.nombre',
+    [id_variante])
+}
+
 export function listarZonas(hdb) {
   return hdb.all('SELECT * FROM ZonaReparto WHERE activa = 1 ORDER BY distrito')
 }

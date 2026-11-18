@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import CoffeeBag from './CoffeeBag'
+import Glass from './Glass'
 import { fmtPEN, fmtUSD } from '../data/products'
 
 export function RetailCard({ product }) {
@@ -22,6 +23,27 @@ export function RetailCard({ product }) {
           {product.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
+        </ul>
+      </div>
+    </article>
+  )
+}
+
+export function DrinkCard({ drink }) {
+  const big = drink.sizes.at(-1)
+  return (
+    <article className="pcard">
+      <Link to={`/catalogo/${drink.id}`} className="pcard__media pcard__media--drink" style={{ '--tint': drink.color }} aria-label={drink.name}>
+        <Glass drink={drink} size={big} compact />
+      </Link>
+      <div className="pcard__body">
+        <div className="pcard__title">
+          <h3><Link to={`/catalogo/${drink.id}`}>{drink.name}</Link></h3>
+          <span className="pcard__price">desde {fmtPEN(drink.sizes[0].price)}</span>
+        </div>
+        <p className="muted">{drink.sizes.map((z) => z.label).join(' o ')}, {drink.hot ? 'caliente' : 'frío'}</p>
+        <ul className="chips" aria-label="Notas de cata">
+          {drink.notes.map((n) => <li key={n}>{n}</li>)}
         </ul>
       </div>
     </article>

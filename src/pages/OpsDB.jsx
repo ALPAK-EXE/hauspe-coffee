@@ -56,14 +56,20 @@ function PerfilMini({ id_cliente }) {
 }
 
 function VentaBarra() {
-  const bebidas = repo.listarVariantes(db()).filter((v) => v.tipo === 'BEBIDA' || v.tipo === 'CAFE')
+  const bebidas = repo.listarVariantes(db()).filter((v) => v.tipo === 'BEBIDA')
   const [id, setId] = useState(bebidas[0]?.id_variante)
   const [qty, setQty] = useState(1)
   const [ok, setOk] = useState('')
   const vender = async (e) => {
     e.preventDefault()
-    const p = await repo.crearPedido(db(), { canal: 'POS', items: [{ id_variante: Number(id), cantidad: Math.max(1, Number(qty) || 1) }], metodoPago: 'EFECTIVO' })
-    setOk(`Venta ${p.codigo} registrada: ${fmtPEN(p.total)}, ${p.numero_comprobante}.`)
+    const n = Math.max(1, Number(qty) || 1)
+    try {
+      const p = await repo.crearPedido(db(), { canal: 'POS', items: [{ id_variante: Number(id), cantidad: n }], metodoPago: 'EFECTIVO' })
+      const usado = repo.recetaDe(db(), Number(id)).filter((r) => r.unidad !== 'u').map((r) => `${r.cantidad * n} ${r.unidad} de ${r.nombre.toLowerCase()}`)
+      setOk(`Venta ${p.codigo} registrada: ${fmtPEN(p.total)}, ${p.numero_comprobante}. Se descontó del almacén: ${usado.join(', ')}.`)
+    } catch (err) {
+      setOk(err.message.includes('CHECK') ? 'No alcanzan los insumos del almacén para esta venta.' : err.message)
+    }
   }
   return (
     <form className="dbx__pos" onSubmit={vender}>
@@ -138,6 +144,12 @@ export function ColaPedidos({ modo }) {
         <p className="muted">{barista ? 'No hay pedidos por preparar.' : 'No hay pedidos listos para despachar.'}</p>
       )}
       {barista && <VentaBarra />}
+      {barista && (
+        <div>
+          <h3 className="display-s">Almacén de insumos</h3>
+          <Tabla columns={['Insumo', 'Stock', 'Mínimo']} rows={repo.listarInsumos(db()).map((i) => [`${i.nombre}${i.bajo ? ' ⚠' : ''}`, `${Math.round(i.stock).toLocaleString('es-PE')} ${i.unidad}`, `${Math.round(i.stock_minimo).toLocaleString('es-PE')} ${i.unidad}`])} />
+        </div>
+      )}
       {!barista && (
         <div className="ops__split dbx__mt">
           <div>
@@ -295,6 +307,7 @@ LEFT JOIN Comprobante cp ON cp.id_pedido = p.id_pedido ORDER BY p.fecha DESC;`],
   ['Ruta firmada de un lote', `SELECT * FROM v_ruta_lote WHERE codigo_lote = 'HP-ORI-0925';`],
   ['Clientes por plan', `SELECT pl.nombre AS plan, COUNT(*) AS clientes FROM Membresia m JOIN Plan pl ON pl.id_plan = m.id_plan
 WHERE m.estado = 'ACTIVA' GROUP BY pl.nombre;`],
+  ['Receta con gramaje', `SELECT * FROM v_receta WHERE producto IN ('Latte', 'Casa');`],
   ['Stock bajo', 'SELECT p.nombre, v.descripcion, v.stock FROM VarianteProducto v JOIN Producto p USING(id_producto) WHERE v.stock < 20;'],
   ['Probar una FK inválida', `INSERT INTO Pedido (codigo, id_cliente, canal, moneda) VALUES ('X-1', 9999, 'WEB', 'PEN');`],
 ]

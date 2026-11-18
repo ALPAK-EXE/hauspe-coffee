@@ -18,11 +18,12 @@ async function guardarEnBD(user, lines, { distrito, opCode }) {
   const db = getDB()
   const usd = lines[0].currency === 'USD'
   const items = lines.map((l) => {
-    const v = repo.varianteDe(db, l.product.id, usd ? null : l.product.weight)
+    const v = repo.varianteDe(db, l.product.id, usd ? null : l.product.kind === 'drink' ? l.size.label : l.product.weight)
     if (usd) {
       const unit = lines.length === 1 ? round2(l.product.pricePerKg * SACK_KG) : round2((l.quote.base - l.quote.discount) / l.item.qty)
       return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: unit, configuracion: { incoterm: l.item.incoterm, destino: l.item.dest } }
     }
+    if (l.product.kind === 'drink') return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: l.unit, configuracion: { tamaño: l.size.label } }
     return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: l.unit, configuracion: { molienda: l.item.grind, plan: l.plan.label } }
   })
   const plan = lines.find((l) => l.plan && l.plan.id !== 'once')?.plan.id
@@ -44,6 +45,9 @@ async function guardarEnBD(user, lines, { distrito, opCode }) {
 
 function snapshot(line) {
   const p = line.product
+  if (p.kind === 'drink') {
+    return { currency: 'PEN', productId: p.id, planId: 'once', name: `${p.name} ${line.size.label}`, detail: 'Bebida de la barra', qty: line.item.qty, unit: line.unit, total: line.total }
+  }
   if (line.currency === 'PEN') {
     return {
       currency: 'PEN',

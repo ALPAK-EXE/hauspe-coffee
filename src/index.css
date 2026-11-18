@@ -756,3 +756,81 @@ main:focus { outline: none; }
 .ops__split > * { min-width: 0; }
 .ops__lines li, .dbx__perfil span, .dbx__ficha p, .dbx__ficha dd { overflow-wrap: anywhere; }
 @media (max-width: 700px) { .ops__split { grid-template-columns: 1fr; } }
+
+/* ---------- Bebidas: vaso en corte con capas proporcionales a la receta ---------- */
+.glass { position: relative; display: grid; justify-items: center; width: min(240px, 70%); margin-inline: auto; padding-top: 70px; }
+.glass--compact { width: min(150px, 50%); padding-top: 8px; }
+.glass__body {
+  position: relative; display: flex; flex-direction: column-reverse; width: 100%; aspect-ratio: 3 / 4; overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 86% 100%, 14% 100%);
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.25) 40%, rgb(255 255 255 / 0.5));
+}
+.glass { filter: drop-shadow(0 18px 22px rgb(47 74 58 / 0.18)); }
+.glass__layer { position: relative; flex: none; width: 100%; transition: height 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.glass__layer + .glass__layer { box-shadow: 0 1px 0 rgb(0 0 0 / 0.06); }
+.glass__layer--espuma { background-image: radial-gradient(circle at 20% 40%, #fff 0 3px, transparent 4px), radial-gradient(circle at 70% 60%, #fff 0 2px, transparent 3px) !important; background-color: #fbf6ec !important; background-size: 22px 16px; }
+.glass__layer--agua, .glass__layer--coldbrew { opacity: 0.92; }
+.glass__cube { position: absolute; width: 26%; aspect-ratio: 1; border-radius: 6px; background: rgb(255 255 255 / 0.55); border: 1px solid rgb(255 255 255 / 0.9); }
+.glass__base { width: 74%; height: 6px; margin-top: 4px; border-radius: 50%; background: rgb(47 74 58 / 0.14); }
+.glass__steam { position: absolute; top: 0; left: 50%; width: 60%; transform: translateX(-50%); overflow: visible; }
+.glass__steam path { fill: none; stroke: color-mix(in srgb, var(--forest) 35%, transparent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 90; stroke-dashoffset: 90; opacity: 0; animation: vapor 3.6s ease-in-out infinite; }
+.glass__steam path:nth-child(2) { animation-delay: 1.1s; }
+.glass__steam path:nth-child(3) { animation-delay: 2.2s; }
+@keyframes vapor {
+  0% { stroke-dashoffset: 90; opacity: 0; transform: translateY(8px); }
+  35% { opacity: 0.9; }
+  100% { stroke-dashoffset: -90; opacity: 0; transform: translateY(-14px); }
+}
+.detail__media--drink { display: grid; gap: 24px; align-content: center; padding: 40px 24px; }
+.pcard__media--drink { min-height: 250px; align-content: end; }
+.glass__legend { display: grid; gap: 6px; width: min(260px, 100%); margin-inline: auto; font-size: 0.875rem; }
+.glass__legend li { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; }
+.glass__legend i, .insumos__dot { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgb(0 0 0 / 0.08); }
+.glass__legend span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.sizes { margin-block: 4px; }
+
+/* Ficha de insumos */
+.insumos { display: grid; gap: 12px; margin-block: 8px 4px; }
+.insumos table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+.insumos th { text-align: left; font-weight: 500; font-size: 0.8125rem; color: var(--muted); padding: 0 0 8px; border-bottom: 1px solid var(--line); }
+.insumos th:last-child, .insumos td:last-child { text-align: right; }
+.insumos td { padding: 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+.insumos td:first-child { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; row-gap: 6px; align-items: center; }
+.insumos td:first-child:not(:has(.insumos__dot)) { grid-template-columns: 1fr; }
+.insumos__bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--sand-soft); position: relative; overflow: hidden; }
+.insumos__bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--forest); border-radius: 2px; transform-origin: left; animation: barra 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes barra { from { transform: scaleX(0); } }
+
+/* Inicio: las bolsas caen en su lugar y sale vapor de la recién tostada */
+.hero__bag { animation: caer 0.9s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.hero__bag--a { animation-delay: 0.15s; --r: -6deg; }
+.hero__bag--b { animation-delay: 0s; --r: 0deg; }
+.hero__bag--c { animation-delay: 0.3s; --r: 5deg; }
+@keyframes caer { from { opacity: 0; transform: translateY(-40px) rotate(var(--r)); } to { opacity: 1; transform: translateY(0) rotate(var(--r)); } }
+.hero__steam { position: absolute; left: 41%; top: -4%; width: 22%; z-index: 2; overflow: visible; }
+.hero__steam path { fill: none; stroke: var(--forest); stroke-opacity: 0.35; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 90; stroke-dashoffset: 90; opacity: 0; animation: vapor 3.6s ease-in-out 1s infinite; }
+.hero__steam path:nth-child(2) { animation-delay: 2.1s; }
+.hero__steam path:nth-child(3) { animation-delay: 3.2s; }
+
+/* Carrito: el contador salta al agregar */
+.icon-btn__badge { animation: salto 0.45s cubic-bezier(0.34, 1.8, 0.64, 1); }
+@keyframes salto { 0% { transform: scale(0.4); } 100% { transform: scale(1); } }
+
+/* Ruta del lote: las etapas aparecen en orden, como un recorrido */
+.dbx__ruta li { animation: etapa 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.dbx__ruta li:nth-child(2) { animation-delay: 0.12s; }
+.dbx__ruta li:nth-child(3) { animation-delay: 0.24s; }
+.dbx__ruta li:nth-child(4) { animation-delay: 0.36s; }
+.dbx__ruta li:nth-child(5) { animation-delay: 0.48s; }
+.dbx__ruta li:nth-child(n+6) { animation-delay: 0.6s; }
+@keyframes etapa { from { opacity: 0; transform: translateX(-10px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .glass__layer, .hero__bag, .icon-btn__badge, .dbx__ruta li, .insumos__bar::after { transition: none !important; animation: none !important; }
+  .glass__steam path, .hero__steam path { animation: none; opacity: 0.4; stroke-dashoffset: 0; }
+}
+.dbx > * { min-width: 0; }
+@media (max-width: 560px) {
+  .tabs { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .tabs__tab { padding: 10px 18px; white-space: nowrap; flex: none; }
+}

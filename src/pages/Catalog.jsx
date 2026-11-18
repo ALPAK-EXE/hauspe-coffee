@@ -1,13 +1,13 @@
 import useTitle from '../useTitle'
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { RetailCard, LotCard } from '../components/ProductCard'
-import { retailProducts, greenLots, PROFILES, ROASTS } from '../data/products'
+import { RetailCard, LotCard, DrinkCard } from '../components/ProductCard'
+import { retailProducts, greenLots, drinks, PROFILES, ROASTS } from '../data/products'
 
 export default function Catalog() {
   useTitle('Cafés')
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'b2b' ? 'b2b' : 'b2c'
+  const tab = ['b2b', 'barra'].includes(params.get('tab')) ? params.get('tab') : 'b2c'
   const profile = params.get('perfil') || 'Todos'
   const roast = params.get('tueste') || 'Todos'
   const variety = params.get('variedad') || 'Todas'
@@ -23,7 +23,7 @@ export default function Catalog() {
       },
       { replace: true },
     )
-  const setTab = (t) => setParams(t === 'b2b' ? { tab: 'b2b' } : {}, { replace: true })
+  const setTab = (t) => setParams(t === 'b2c' ? {} : { tab: t }, { replace: true })
 
   const retail = useMemo(
     () =>
@@ -50,7 +50,9 @@ export default function Catalog() {
         <p className="lead measure">
           {tab === 'b2c'
             ? 'Café tostado para tu casa. Elige el molido y recíbelo cuando quieras.'
-            : 'Café verde sin tostar de fincas de Villa Rica. HausPe exporta por ti y el grano llega fresco a tu tostadora.'}
+            : tab === 'barra'
+              ? 'Las bebidas de nuestra barra, con la receta y el gramaje de cada insumo.'
+              : 'Café verde sin tostar de fincas de Villa Rica. HausPe exporta por ti y el grano llega fresco a tu tostadora.'}
         </p>
       </header>
 
@@ -63,12 +65,19 @@ export default function Catalog() {
         <button role="tab" aria-selected={tab === 'b2c'} className="tabs__tab" onClick={() => setTab('b2c')}>
           Tienda
         </button>
+        <button role="tab" aria-selected={tab === 'barra'} className="tabs__tab" onClick={() => setTab('barra')}>
+          Cafetería
+        </button>
         <button role="tab" aria-selected={tab === 'b2b'} className="tabs__tab" onClick={() => setTab('b2b')}>
           Exportación
         </button>
       </div>
 
-      {tab === 'b2c' ? (
+      {tab === 'barra' ? (
+        <div className="grid grid--3">
+          {drinks.map((d) => <DrinkCard key={d.id} drink={d} />)}
+        </div>
+      ) : tab === 'b2c' ? (
         <>
           <div className="filters">
             <FilterGroup label="Perfil" options={['Todos', ...PROFILES]} value={profile} onChange={(v) => setParam('perfil', v, 'Todos')} />

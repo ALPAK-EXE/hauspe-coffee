@@ -101,6 +101,22 @@ CREATE TABLE VarianteProducto (
   stock        INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0)
 );
 
+CREATE TABLE Insumo (
+  id_insumo    INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre       TEXT NOT NULL UNIQUE,
+  unidad       TEXT NOT NULL CHECK (unidad IN ('g','ml','u')),
+  stock        REAL NOT NULL CHECK (stock >= 0),
+  stock_minimo REAL NOT NULL DEFAULT 0
+);
+
+-- Receta: gramaje de cada insumo por variante (bolsa de 250 g, latte 12 oz, etc.)
+CREATE TABLE RecetaInsumo (
+  id_variante INTEGER NOT NULL REFERENCES VarianteProducto(id_variante) ON DELETE CASCADE,
+  id_insumo   INTEGER NOT NULL REFERENCES Insumo(id_insumo),
+  cantidad    REAL NOT NULL CHECK (cantidad > 0),
+  PRIMARY KEY (id_variante, id_insumo)
+);
+
 CREATE TABLE Extra (
   id_extra INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre   TEXT NOT NULL,
@@ -371,6 +387,16 @@ BEGIN
   UPDATE VarianteProducto SET stock = stock - NEW.cantidad WHERE id_variante = NEW.id_variante;
 END;
 
+-- Cada venta descuenta del almacén el gramaje de sus insumos (si no alcanza, la venta se rechaza)
+CREATE TRIGGER trg_consumo_insumos
+AFTER INSERT ON DetallePedido
+WHEN (SELECT tipo FROM Pedido WHERE id_pedido = NEW.id_pedido) = 'VENTA'
+BEGIN
+  UPDATE Insumo SET stock = stock - NEW.cantidad *
+    (SELECT r.cantidad FROM RecetaInsumo r WHERE r.id_variante = NEW.id_variante AND r.id_insumo = Insumo.id_insumo)
+  WHERE id_insumo IN (SELECT id_insumo FROM RecetaInsumo WHERE id_variante = NEW.id_variante);
+END;
+
 -- La exportación no lleva IGV
 CREATE TRIGGER trg_cotizacion_sin_igv
 BEFORE INSERT ON Comprobante
@@ -388,6 +414,12 @@ JOIN EtapaTrazabilidad e ON e.id_lote = l.id_lote
 LEFT JOIN FirmaEtapa f   ON f.id_etapa = e.id_etapa
 LEFT JOIN Empleado em    ON em.id_empleado = f.id_empleado
 ORDER BY l.codigo_lote, e.orden;
+
+CREATE VIEW v_receta AS
+SELECT p.nombre AS producto, v.descripcion AS variante, i.nombre AS insumo, r.cantidad, i.unidad
+FROM RecetaInsumo r JOIN VarianteProducto v ON v.id_variante = r.id_variante
+JOIN Producto p ON p.id_producto = v.id_producto JOIN Insumo i ON i.id_insumo = r.id_insumo
+ORDER BY p.id_producto, v.id_variante;
 
 CREATE VIEW v_ventas_por_canal AS
 SELECT canal, moneda, COUNT(*) AS pedidos, ROUND(SUM(total), 2) AS total

@@ -1,6 +1,6 @@
 // Datos de ejemplo para que la demo nunca arranque vacía.
 import { sha256, fechaLocal, soloFecha, sumarDias, sumarHoras } from './core.js'
-import { retailProducts, greenLots } from '../data/products'
+import { retailProducts, greenLots, drinks, bagInsumos } from '../data/products'
 import { registrarEtapa, crearPedido, avanzarPedido, guardarPerfilSabor, agregarNota } from './repo.js'
 
 const hace = (dias, horas = 0) => fechaLocal(sumarHoras(sumarDias(new Date(), -dias), -horas))
@@ -52,13 +52,39 @@ export async function seed(hdb) {
       'INSERT INTO VarianteProducto (id_producto, descripcion, moneda, precio, unidad, stock) VALUES (?,?,?,?,?,?)', [id, d, m, p, u, s])) }
   }
   // Cafés tostados y lotes verdes: los mismos de src/data/products.js
-  const guiaDe = { casa: 'PRENSA', origen: 'V60', tarde: 'MOKA' }
+  const guiaDe = { casa: 'PRENSA', origen: 'V60', tarde: 'MOKA', geisha: 'V60', natural: 'COLD_BREW', 'espresso-casa': 'ESPRESSO', honey: 'V60', descafeinado: 'PRENSA' }
   const tostados = retailProducts.map((p) => ({
     ...prod(p.id, p.name, 'CAFE', 'Cafés de especialidad', `${p.notes.join(', ')}.`, guiaDe[p.id],
       [[p.weight, 'PEN', p.price, 'bolsa', 300], ['1 kg HORECA', 'PEN', Math.round(p.price * 3.5), 'bolsa', 80]]),
     src: p,
   }))
   const [casa, origen, tarde] = tostados
+  const bebidas = drinks.map((d) => ({
+    ...prod(d.id, d.name, 'BEBIDA', 'Cafetería', d.description, d.id === 'bebida-coldbrew' ? 'COLD_BREW' : 'ESPRESSO',
+      d.sizes.map((z) => [z.label, 'PEN', z.price, 'vaso', 9999])),
+    src: d,
+  }))
+
+  // Insumos y recetas con gramaje (la venta descuenta del almacén)
+  const insumos = new Map()
+  const insumo = (nombre, unidad) => {
+    if (!insumos.has(nombre)) {
+      const stock = unidad === 'u' ? 2000 : unidad === 'g' ? 60000 : 80000
+      insumos.set(nombre, r('INSERT INTO Insumo (nombre, unidad, stock, stock_minimo) VALUES (?,?,?,?)', [nombre, unidad, stock, stock * 0.1]))
+    }
+    return insumos.get(nombre)
+  }
+  const ALIAS = { 'Espuma de leche': 'Leche entera', 'Agua caliente': 'Agua filtrada', 'Agua fría (extracción 16 h)': 'Agua filtrada' }
+  const receta = (id_variante, filas, factor = 1) => {
+    const suma = new Map()
+    filas.forEach((f) => {
+      const nombre = ALIAS[f.nombre] || f.nombre
+      suma.set(nombre, { unidad: f.unidad, cantidad: (suma.get(nombre)?.cantidad || 0) + f.cantidad * factor })
+    })
+    suma.forEach((v, nombre) => r('INSERT INTO RecetaInsumo (id_variante, id_insumo, cantidad) VALUES (?,?,?)', [id_variante, insumo(nombre, v.unidad), v.cantidad]))
+  }
+  tostados.forEach((t) => { receta(t.variantes[0], bagInsumos(t.src)); receta(t.variantes[1], bagInsumos(t.src), 4) })
+  bebidas.forEach((b) => b.src.sizes.forEach((z, i) => receta(b.variantes[i], z.insumos.filter((f) => f.nombre !== 'Espresso'))))
   const verdes = greenLots.map((g) => ({
     ...prod(g.id, g.name, 'VERDE', 'Exportación', `Café verde ${g.variety}, proceso ${g.process.toLowerCase()}.`, null,
       [['Saco 60 kg', 'USD', Math.round(g.pricePerKg * 60 * 100) / 100, 'saco', g.stockSacks]]),
@@ -71,8 +97,6 @@ export async function seed(hdb) {
   prod('moka-3', 'Cafetera moka 3 tazas', 'ACCESORIO', 'Cafeteras', 'Aluminio, apta para cocina a gas.', 'MOKA', [['3 tazas', 'PEN', 79, 'unidad', 20]])
   const packV60 = prod('pack-v60', 'Pack V60', 'KIT', 'Packs cafeteros', 'Dripper V60 + filtros + Origen 250 g.', 'V60', [['Pack', 'PEN', 149, 'kit', 15]])
   prod('pack-premium', 'Pack Premium Villa Rica', 'KIT', 'Packs premium', 'Casa + Origen + Tarde 250 g y taza de cerámica.', null, [['Pack', 'PEN', 189, 'kit', 10]])
-  prod('espresso-bar', 'Espresso de la barra', 'BEBIDA', 'Bebidas', 'Doble shot de Origen.', 'ESPRESSO', [['Simple', 'PEN', 7, 'vaso', 999], ['Doble', 'PEN', 9, 'vaso', 999]])
-  prod('latte-bar', 'Latte Villa Rica', 'BEBIDA', 'Bebidas', 'Espresso de Casa con leche texturizada.', 'ESPRESSO', [['12 oz', 'PEN', 11, 'vaso', 999], ['16 oz', 'PEN', 13, 'vaso', 999]])
   ;[['Shot extra', 3], ['Leche de avena', 2.5], ['Jarabe de panela', 1.5]].forEach(([n, p]) => r('INSERT INTO Extra (nombre, precio) VALUES (?,?)', [n, p]))
 
   // Promociones (precio tachado) y promo exclusiva Premium
@@ -93,11 +117,10 @@ export async function seed(hdb) {
     r(`INSERT INTO LoteCafe (codigo_lote, id_producto, finca_origen, productor, altura_msnm, variedad, proceso, puntaje_sca, fecha_cosecha, tipo)
        VALUES (?,?,?,?,?,?,?,?,?,?)`, [codigo, id_producto, finca, productor, alt, variedad, proceso, sca, cosecha, tipo])
   const lotes = [
-    ...tostados.map((t, i) => ({
+    ...tostados.map((t) => ({
       codigo: t.src.batch, pref: t.src.batch, tipo: 'BOLSA', peso: 0.25,
-      id: lote(t.src.batch, t.id, t.src.origin.split(',')[0].startsWith('Finca') ? t.src.origin.split(',')[0] : ['Finca Santa Rosa', 'Finca La Esperanza', 'Finca El Mirador'][i],
-        ['Eber Soto', 'Familia Quispe Rojas', 'Rosa Pari'][i], parseInt(t.src.altitude.replace(/\D/g, ''), 10), ['Caturra', 'Typica', 'Bourbon'][i],
-        'Lavado', [84, 86.5, 85][i], '2026-07-10', 'TOSTADO'),
+      id: lote(t.src.batch, t.id, t.src.composition[0].finca, t.src.producer, parseInt(t.src.altitude.replace(/\D/g, ''), 10),
+        t.src.variety, t.src.process, t.src.sca, '2026-07-10', 'TOSTADO'),
     })),
     ...verdes.map((v) => ({
       codigo: v.src.batch, pref: v.src.batch, tipo: 'COSTAL', peso: 60,
@@ -157,7 +180,7 @@ export async function seed(hdb) {
   await avanzarPedido(hdb, p2.codigo)
   const p3 = await crearPedido(hdb, { id_cliente: horeca, items: [{ id_variante: tarde.variantes[1], cantidad: 3 }], distrito: 'Barranco', metodoPago: 'TRANSFERENCIA', referencia: 'OP-88213' })
   await avanzarPedido(hdb, p3.codigo); await avanzarPedido(hdb, p3.codigo); await avanzarPedido(hdb, p3.codigo, { codigo_repartidor: "RD1" })
-  await crearPedido(hdb, { canal: 'POS', items: [{ id_variante: hdb.get(`SELECT id_variante FROM VarianteProducto v JOIN Producto p USING(id_producto) WHERE p.sku='latte-bar' LIMIT 1`).id_variante, cantidad: 2 }], metodoPago: 'EFECTIVO' })
+  await crearPedido(hdb, { canal: 'POS', items: [{ id_variante: hdb.get(`SELECT id_variante FROM VarianteProducto v JOIN Producto p USING(id_producto) WHERE p.sku='bebida-latte' LIMIT 1`).id_variante, cantidad: 2 }], metodoPago: 'EFECTIVO' })
   await crearPedido(hdb, { id_cliente: nordic, items: [{ id_variante: verdes[0].variantes[0], cantidad: 10 }], incoterm: 'CIF', pais_destino: 'Alemania', flete: 252, descuentoVolumen: 0.03 })
   // Pedido antiguo ya entregado (historial)
   const p6 = await crearPedido(hdb, { id_cliente: lucia, items: [{ id_variante: tarde.variantes[0], cantidad: 2 }], id_direccion: dLucia, distrito: 'Villa El Salvador', referencia: '110233' })
