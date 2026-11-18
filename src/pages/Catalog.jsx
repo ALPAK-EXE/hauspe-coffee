@@ -7,7 +7,7 @@ import { retailProducts, greenLots, drinks, PROFILES, ROASTS } from '../data/pro
 export default function Catalog() {
   useTitle('Cafés')
   const [params, setParams] = useSearchParams()
-  const tab = ['b2b', 'barra'].includes(params.get('tab')) ? params.get('tab') : 'b2c'
+  const tab = ['b2b', 'barra', 'horeca'].includes(params.get('tab')) ? params.get('tab') : 'b2c'
   const profile = params.get('perfil') || 'Todos'
   const roast = params.get('tueste') || 'Todos'
   const variety = params.get('variedad') || 'Todas'
@@ -50,7 +50,9 @@ export default function Catalog() {
         <p className="lead measure">
           {tab === 'b2c'
             ? 'Café tostado para tu casa. Elige el molido y recíbelo cuando quieras.'
-            : tab === 'barra'
+            : tab === 'horeca'
+              ? 'Presentaciones de 1 kg para cafeterías, restaurantes y hoteles. Factura con RUC y reposición programada.'
+              : tab === 'barra'
               ? 'Las bebidas de nuestra barra, con la receta y el gramaje de cada insumo.'
               : 'Café verde sin tostar de fincas de Villa Rica. HausPe exporta por ti y el grano llega fresco a tu tostadora.'}
         </p>
@@ -68,12 +70,19 @@ export default function Catalog() {
         <button role="tab" aria-selected={tab === 'barra'} className="tabs__tab" onClick={() => setTab('barra')}>
           Cafetería
         </button>
+        <button role="tab" aria-selected={tab === 'horeca'} className="tabs__tab" onClick={() => setTab('horeca')}>
+          HORECA
+        </button>
         <button role="tab" aria-selected={tab === 'b2b'} className="tabs__tab" onClick={() => setTab('b2b')}>
           Exportación
         </button>
       </div>
 
-      {tab === 'barra' ? (
+      {tab === 'horeca' ? (
+        <div className="grid grid--3">
+          {retailProducts.map((p) => <RetailCard key={p.id} product={p} pres="1kg" />)}
+        </div>
+      ) : tab === 'barra' ? (
         <div className="grid grid--3">
           {drinks.map((d) => <DrinkCard key={d.id} drink={d} />)}
         </div>

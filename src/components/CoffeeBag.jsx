@@ -1,5 +1,27 @@
 // Ilustración de bolsa de café (tostado) o saco de yute (café verde) en SVG puro
-export default function CoffeeBag({ name, color = '#2F4A3A', variant = 'bag', caption, className = '' }) {
+import { cells } from './FakeQr'
+
+// QR impreso en el empaque: lleva al pasaporte digital del lote
+function QrEmpaque({ x, y, size, seed }) {
+  const k = size / 27
+  return (
+    <g transform={`translate(${x} ${y})`} aria-hidden="true">
+      <rect width={size} height={size} rx="2" fill="#fff" />
+      <g transform={`translate(${k} ${k}) scale(${k})`} fill="#1F2A24" shapeRendering="crispEdges">
+        {cells(seed).map(([cx, cy]) => <rect key={`${cx}-${cy}`} x={cx} y={cy} width="1" height="1" />)}
+        {[[0, 0], [18, 0], [0, 18]].map(([fx, fy]) => (
+          <g key={`${fx}-${fy}`} transform={`translate(${fx} ${fy})`}>
+            <rect width="7" height="7" />
+            <rect x="1" y="1" width="5" height="5" fill="#fff" />
+            <rect x="2" y="2" width="3" height="3" />
+          </g>
+        ))}
+      </g>
+    </g>
+  )
+}
+
+export default function CoffeeBag({ name, color = '#2F4A3A', variant = 'bag', caption, weight = '250 G', className = '' }) {
   if (variant === 'sack') {
     return (
       <svg
@@ -34,6 +56,7 @@ export default function CoffeeBag({ name, color = '#2F4A3A', variant = 'bag', ca
         <text x="100" y="176" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="9" fontWeight="600" fill="#2F4A3A">
           {caption || '60 kg'}
         </text>
+        <QrEmpaque x={150} y={196} size={24} seed={`saco-${name}`} />
       </svg>
     )
   }
@@ -49,7 +72,7 @@ export default function CoffeeBag({ name, color = '#2F4A3A', variant = 'bag', ca
       <text x="100" y="114" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="18" fontWeight="600" fill="#F4F1EA">
         h.
       </text>
-      <text x="100" y="152" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize="26" fontWeight="500" fill="#2F4A3A">
+      <text x="100" y="152" textAnchor="middle" fontFamily="Cormorant Garamond, serif" fontSize={name.length > 9 ? 19 : name.length > 7 ? 22 : 26} fontWeight="500" fill="#2F4A3A">
         {name}
       </text>
       <line x1="76" y1="164" x2="124" y2="164" stroke={color} strokeWidth="1.5" />
@@ -57,7 +80,14 @@ export default function CoffeeBag({ name, color = '#2F4A3A', variant = 'bag', ca
         {caption || 'VILLA RICA, PASCO'}
       </text>
       <text x="100" y="196" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="7" letterSpacing="1.6" fill="#5B6B5F">
-        250 G
+        {weight}
+      </text>
+      <QrEmpaque x={128} y={211} size={28} seed={`bolsa-${name}`} />
+      <text x="122" y="224" textAnchor="end" fontFamily="Inter, sans-serif" fontSize="6" letterSpacing="0.6" fill="#F4F1EA" opacity="0.85">
+        ESCANEA TU
+      </text>
+      <text x="122" y="232" textAnchor="end" fontFamily="Inter, sans-serif" fontSize="6" letterSpacing="0.6" fill="#F4F1EA" opacity="0.85">
+        PASAPORTE
       </text>
     </svg>
   )

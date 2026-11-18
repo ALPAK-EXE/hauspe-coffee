@@ -1,7 +1,8 @@
+/* eslint-disable react-refresh/only-export-components */
 // Código QR decorativo (no codifica nada real)
 const N = 25
 
-function cells(seed) {
+export function cells(seed) {
   let s = [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)
   const out = []
   const inFinder = (x, y) =>

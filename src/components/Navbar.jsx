@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext'
 
 const LINKS = [
   { to: '/catalogo', label: 'Cafés' },
+  { to: '/preparar', label: 'Prepara tu café' },
   { to: '/historia', label: 'Nuestro origen' },
   { to: '/sumate', label: 'Súmate' },
 ]

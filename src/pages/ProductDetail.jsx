@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import useTitle from '../useTitle'
 import { useAuth } from '../context/AuthContext'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, QrCode } from '@phosphor-icons/react'
 import CoffeeBag from '../components/CoffeeBag'
 import Glass, { layersOf } from '../components/Glass'
@@ -16,6 +16,9 @@ import {
   canQuoteExport,
   INCOTERMS,
   PLANS,
+  PRESENTACIONES,
+  precioPres,
+  presOf,
   SACK_KG,
   fmtPEN,
   fmtUSD,
@@ -84,15 +87,18 @@ function Retail({ product }) {
   const [grind, setGrind] = useState(GRIND_OPTIONS[0])
   const [plan, setPlan] = useState('once')
   const [qty, setQty] = useState(1)
+  const [params] = useSearchParams()
+  const [pres, setPres] = useState(() => (params.get('pres') === '1kg' || user?.businessType === 'HORECA' ? '1kg' : '250g'))
   const planObj = PLANS.find((p) => p.id === plan)
-  const unit = round2(product.price * (1 - planObj.discount))
+  const base = precioPres(product, pres)
+  const unit = round2(base * (1 - planObj.discount))
 
   return (
     <div className="container page">
       <Back />
       <div className="detail">
         <div className="detail__media" style={{ '--tint': product.color }}>
-          <CoffeeBag name={product.name} color={product.color} />
+          <CoffeeBag name={product.name} color={product.color} weight={presOf(pres).bolsa} />
         </div>
         <div className="detail__info">
           <h1 className="display-l">{product.name}</h1>
@@ -138,6 +144,17 @@ function Retail({ product }) {
           />
 
           <div className="buy">
+            <fieldset className="buy__plans sizes">
+              <legend>Presentación</legend>
+              {PRESENTACIONES.map((p) => (
+                <label key={p.id} className={`plan${pres === p.id ? ' is-on' : ''}`}>
+                  <input type="radio" name="pres" checked={pres === p.id} onChange={() => setPres(p.id)} />
+                  <span>{p.label}</span>
+                  <small>{fmtPEN(precioPres(product, p.id))}</small>
+                </label>
+              ))}
+            </fieldset>
+            {pres === '1kg' && <p className="muted">Para cafeterías, restaurantes y hoteles. Con cuenta HORECA recibes factura con tu RUC.</p>}
             <label className="buy__field">
               <span>Molienda</span>
               <select value={grind} onChange={(e) => setGrind(e.target.value)}>
@@ -171,7 +188,7 @@ function Retail({ product }) {
                 className="btn btn--primary buy__add"
                 disabled={!canBuyRetail(user)}
                 onClick={() => {
-                  const res = addItem({ id: product.id, qty, grind, plan })
+                  const res = addItem({ id: product.id, qty, grind, plan, pres })
                   setMixed(res.ok ? null : res)
                 }}
               >
@@ -187,7 +204,7 @@ function Retail({ product }) {
               <MixedNotice
                 current={mixed.current}
                 onReplace={() => {
-                  addItem({ id: product.id, qty, grind, plan }, { replace: true })
+                  addItem({ id: product.id, qty, grind, plan, pres }, { replace: true })
                   setMixed(null)
                 }}
               />

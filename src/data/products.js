@@ -453,6 +453,14 @@ export const IGV_RATE = 0.18
 export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 
 // Quién compra qué: tienda (S/, Yape, comprobante peruano) o exportación (US$, cotización sin IGV)
+// Presentaciones de la tienda: la de 1 kg es para cafeterías, restaurantes y hoteles (HORECA)
+export const PRESENTACIONES = [
+  { id: '250g', label: '250 g', db: '250 g', factor: 1, bolsa: '250 G' },
+  { id: '1kg', label: '1 kg (HORECA)', db: '1 kg HORECA', factor: 3.5, bolsa: '1 KG' },
+]
+export const presOf = (id) => PRESENTACIONES.find((p) => p.id === id) || PRESENTACIONES[0]
+export const precioPres = (product, presId) => Math.round(product.price * presOf(presId).factor)
+
 export const sizeOf = (product, sizeId) => product.sizes?.find((z) => z.id === sizeId) || product.sizes?.[0]
 
 export const canBuyRetail = (user) => !user || user.segment === 'b2c' || user.businessType === 'HORECA'

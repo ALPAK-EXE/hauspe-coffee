@@ -18,7 +18,7 @@ async function guardarEnBD(user, lines, { distrito, opCode }) {
   const db = getDB()
   const usd = lines[0].currency === 'USD'
   const items = lines.map((l) => {
-    const v = repo.varianteDe(db, l.product.id, usd ? null : l.product.kind === 'drink' ? l.size.label : l.product.weight)
+    const v = repo.varianteDe(db, l.product.id, usd ? null : l.product.kind === 'drink' ? l.size.label : l.pres.db)
     if (usd) {
       const unit = lines.length === 1 ? round2(l.product.pricePerKg * SACK_KG) : round2((l.quote.base - l.quote.discount) / l.item.qty)
       return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: unit, configuracion: { incoterm: l.item.incoterm, destino: l.item.dest } }
@@ -54,7 +54,7 @@ function snapshot(line) {
       productId: p.id,
       grind: line.item.grind,
       planId: line.plan.id,
-      name: `${p.name} ${p.weight}`,
+      name: `${p.name} ${line.pres.label}`,
       detail: `${line.item.grind}, ${line.plan.label.toLowerCase()}`,
       qty: line.item.qty,
       unit: line.unit,

@@ -19,7 +19,6 @@ const TABS = [
   { id: 'crm', label: 'CRM' },
   { id: 'bd', label: 'Base de datos' },
   { id: 'cosecha', label: 'Cosecha' },
-  { id: 'tueste', label: 'Tueste' },
   { id: 'telemetria', label: 'Telemetría' },
   { id: 'recordatorios', label: 'Recordatorios' },
   { id: 'qr', label: 'QR por empaque' },
@@ -311,7 +310,6 @@ export default function Ops() {
         {tab === 'crm' && <Crm />}
         {tab === 'bd' && <BaseDeDatos />}
         {tab === 'cosecha' && <RegisterForm key="c" kind="cosecha" />}
-        {tab === 'tueste' && <RegisterForm key="t" kind="tueste" />}
         {tab === 'telemetria' && <Telemetry />}
         {tab === 'recordatorios' && <Reminders />}
         {tab === 'qr' && <QrLabels />}

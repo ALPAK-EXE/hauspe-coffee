@@ -48,7 +48,7 @@ function RetailLine({ line, updateItem, removeItem }) {
         <div>
           <h3>{product.name}</h3>
           <p className="muted">
-            {product.weight}, {item.grind}
+            {line.pres?.label || product.weight}, {item.grind}
           </p>
         </div>
         <button type="button" className="icon-btn icon-btn--sm" onClick={() => removeItem(item.key)} aria-label={`Quitar ${product.name}`}>
@@ -69,7 +69,7 @@ function RetailLine({ line, updateItem, removeItem }) {
       <div className="cart-line__foot">
         <Stepper value={item.qty} max={20} onChange={(qty) => updateItem(item.key, { qty })} label={`Cantidad de ${product.name}`} />
         <div className="cart-line__price">
-          {line.saving > 0 && <s>{fmtPEN(product.price * item.qty)}</s>}
+          {line.saving > 0 && <s>{fmtPEN(line.base * item.qty)}</s>}
           <strong>{fmtPEN(line.total)}</strong>
         </div>
       </div>

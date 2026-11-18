@@ -207,6 +207,8 @@ export default function QrPassport() {
   const series = seriesFor(pass)
   const wet = humidityAlert(series)
   const isSack = /-s\d{3}$/i.test(codigo)
+  // Tiempo de vida máximo simulado: entre 3 y 6 días, fijo para cada código
+  const vida = 3 + ([...codigo.toUpperCase()].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 4)
   const shownCode = unit ? `${pass.code}-${isSack ? 'S' : 'U'}${unit}` : pass.code
 
   return (
@@ -222,6 +224,24 @@ export default function QrPassport() {
         </div>
         <QrImage className="passport__qr" value={passportUrl(shownCode)} label={`QR de ${unit ? 'este empaque' : 'este lote'}, ${shownCode}`} filename={`qr-${shownCode}`} download />
       </header>
+
+      <section className="fresco" aria-label="Tu café">
+        <div>
+          <h2 className="display-s">De dónde viene tu café</h2>
+          <p>
+            {(isGreen ? product.finca : product.origin).replace(/, Villa Rica$/, '')}, Villa Rica (Pasco), a {isGreen ? product.altitude : product.altitude?.replace(' msnm', '')} msnm.
+            {' '}Cosechado en {pass.harvest?.toLowerCase()}{isGreen ? ' y exportado en verde.' : ` y tostado el ${pass.roasted}.`}
+          </p>
+        </div>
+        <div className="fresco__vida">
+          <span>Tiempo de vida máximo</span>
+          <strong>{vida} días</strong>
+          <small>Desde que abres la bolsa, para tomarlo en su mejor momento (dato simulado).</small>
+        </div>
+        {!isGreen && (
+          <Link to="/preparar" className="btn btn--primary fresco__cta">Aprende a preparar tu café</Link>
+        )}
+      </section>
 
       <dl className="timeline">
         <div>

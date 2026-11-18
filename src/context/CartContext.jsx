@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { load, save } from './storage'
-import { getProduct, PLANS, quoteLot, round2, sizeOf } from '../data/products'
+import { getProduct, PLANS, precioPres, presOf, quoteLot, round2, sizeOf } from '../data/products'
 
 const CART_KEY = 'hauspe_cart'
 const ORDERS_KEY = 'hauspe_orders'
@@ -22,14 +22,17 @@ export function priceLine(item) {
   }
   if (product.kind === 'b2c') {
     const plan = PLANS.find((p) => p.id === item.plan) || PLANS[0]
-    const unit = round2(product.price * (1 - plan.discount))
+    const base = precioPres(product, item.pres)
+    const unit = round2(base * (1 - plan.discount))
     return {
       item,
       product,
       currency: 'PEN',
       plan,
+      pres: presOf(item.pres),
+      base,
       unit,
-      saving: round2((product.price - unit) * item.qty),
+      saving: round2((base - unit) * item.qty),
       total: round2(unit * item.qty),
     }
   }
@@ -85,6 +88,7 @@ export function CartProvider({ children }) {
         i.id === entry.id &&
         i.grind === entry.grind &&
         i.size === entry.size &&
+        i.pres === entry.pres &&
         i.plan === entry.plan &&
         i.incoterm === entry.incoterm &&
         i.dest === entry.dest

@@ -16,6 +16,7 @@ import QrPassport from './pages/QrPassport'
 import Matcher from './pages/Matcher'
 import Ops from './pages/Ops'
 import Account from './pages/Account'
+import Guide from './pages/Guide'
 
 function NotFound() {
   useTitle('Página no encontrada')
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="/matcher" element={<Matcher />} />
               <Route path="/operaciones" element={<Ops />} />
               <Route path="/mi-cuenta" element={<Account />} />
+              <Route path="/preparar" element={<Guide />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

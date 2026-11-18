@@ -1,23 +1,24 @@
 import { Link } from 'react-router-dom'
 import CoffeeBag from './CoffeeBag'
 import Glass from './Glass'
-import { fmtPEN, fmtUSD } from '../data/products'
+import { fmtPEN, fmtUSD, precioPres, presOf } from '../data/products'
 
-export function RetailCard({ product }) {
+export function RetailCard({ product, pres = '250g' }) {
+  const to = `/catalogo/${product.id}${pres === '1kg' ? '?pres=1kg' : ''}`
   return (
     <article className="pcard">
-      <Link to={`/catalogo/${product.id}`} className="pcard__media" style={{ '--tint': product.color }}>
-        <CoffeeBag name={product.name} color={product.color} />
+      <Link to={to} className="pcard__media" style={{ '--tint': product.color }}>
+        <CoffeeBag name={product.name} color={product.color} weight={presOf(pres).bolsa} />
       </Link>
       <div className="pcard__body">
         <div className="pcard__title">
           <h3>
-            <Link to={`/catalogo/${product.id}`}>{product.name}</Link>
+            <Link to={to}>{product.name}</Link>
           </h3>
-          <span className="pcard__price">{fmtPEN(product.price)}</span>
+          <span className="pcard__price">{fmtPEN(precioPres(product, pres))}</span>
         </div>
         <p className="muted">
-          Tueste {product.roast.toLowerCase()}, {product.weight}
+          Tueste {product.roast.toLowerCase()}, {pres === '1kg' ? '1 kg' : product.weight}
         </p>
         <ul className="chips" aria-label="Notas de cata">
           {product.notes.map((n) => (
