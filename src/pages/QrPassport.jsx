@@ -9,6 +9,8 @@ import { ZERO_HASH, ensureChain, getChain, verifyChain } from '../data/chain'
 import { addLead, getHarvests, getRoasts } from '../data/ops'
 import { getPassport, unitOf } from '../data/passports'
 import { getProduct } from '../data/products'
+import { getDB, useDBVersion } from '../db/browser'
+import * as repo from '../db/repo'
 import { HUMIDITY_RANGE, humidityAlert, outOfRange, seriesFor } from '../data/telemetry'
 
 const short = (h) => `0x${h.slice(0, 10)}…${h.slice(-6)}`
@@ -56,6 +58,7 @@ function LeadForm({ code }) {
       return
     }
     addLead({ whatsapp: whatsapp.trim(), source: code })
+    try { repo.registrarLead(getDB(), { whatsapp: whatsapp.trim(), codigo_qr: code, origen: 'QR' }) } catch { /* el lead ya quedó en el registro local */ }
     setError('')
     setDone(true)
   }
@@ -140,6 +143,48 @@ function Chain({ code, base }) {
   )
 }
 
+const ETAPA = { FINCA: 'Finca (cosecha)', DARK_STORE: 'Dark store / almacén', TUESTE: 'Tueste', EXPORTACION: 'Exportación', DELIVERY: 'Delivery' }
+
+// Ruta completa del lote leída de la base de datos: cada etapa firmada por un inspector y encadenada con SHA-256
+function RutaFirmada({ codigo, lote }) {
+  useDBVersion()
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    repo.pasaporte(getDB(), codigo).then((d) => vivo && setData(d || null))
+    return () => { vivo = false }
+  }, [codigo])
+  if (!data) return null
+  const v = data.verificacion
+  const l = data.lote
+  return (
+    <section className="registry">
+      <h2 className="display-m">Ruta del lote</h2>
+      {data.vista === 'TECNICA' && (
+        <dl className="dbx__ficha dbx__mt">
+          <dt><strong>Ficha técnica para el importador</strong></dt>
+          <dd className="muted">{l.finca_origen} · Productor {l.productor} · {l.altura_msnm} msnm · {l.variedad} · Proceso {l.proceso?.toLowerCase()} · SCA {l.puntaje_sca} · Cosecha {l.fecha_cosecha}{data.unidad ? ` · Costal ${data.unidad.peso_kg} kg, estado ${data.unidad.estado.toLowerCase().replace('_', ' ')}` : ''}</dd>
+        </dl>
+      )}
+      {data.pedido && <p className="muted">Este empaque pertenece al pedido {data.pedido.codigo}.</p>}
+      <p className={v.ok ? 'form-ok' : 'notice notice--warn'}>
+        {v.ok ? `Cadena íntegra: ${v.bloques} etapas firmadas y verificadas con SHA-256.` : `Alerta: la cadena del lote ${lote} fue alterada en la etapa ${v.rotoEn}.`}
+      </p>
+      <ol className="dbx__ruta">
+        {data.ruta.map((r) => (
+          <li key={r.orden}>
+            <strong>{r.orden}. {ETAPA[r.tipo] || r.tipo}</strong>
+            <span>{r.ubicacion || 'Sin ubicación'}{r.detalle ? `, ${r.detalle}` : ''}</span>
+            <span className="muted">Firmó {r.codigo_inspector} · {r.inspector}, {new Date(r.firmado_en.replace(' ', 'T')).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+            <code>{r.hash.slice(0, 24)}…</code>
+          </li>
+        ))}
+      </ol>
+      {data.guia && <p className="muted">Guía recomendada: {data.guia.titulo}, proporción {data.guia.proporcion}.</p>}
+    </section>
+  )
+}
+
 export default function QrPassport() {
   const { codigo } = useParams()
   const pass = getPassport(codigo)
@@ -161,7 +206,8 @@ export default function QrPassport() {
   const roasts = getRoasts().filter((r) => r.batch === pass.code)
   const series = seriesFor(pass)
   const wet = humidityAlert(series)
-  const shownCode = unit ? `${pass.code}-U${unit}` : pass.code
+  const isSack = /-s\d{3}$/i.test(codigo)
+  const shownCode = unit ? `${pass.code}-${isSack ? 'S' : 'U'}${unit}` : pass.code
 
   return (
     <div className="container page">
@@ -172,7 +218,7 @@ export default function QrPassport() {
           <p className="lead">
             {isGreen ? `${product.finca}, café verde` : `Café ${product.name}`}. Lote {pass.code}.
           </p>
-          {unit && <p className="muted"><Package size={16} aria-hidden="true" /> Empaque {unit}</p>}
+          {unit && <p className="muted"><Package size={16} aria-hidden="true" /> {isSack ? `Costal ${unit} de 60 kg (vista técnica)` : `Empaque ${unit}`}</p>}
         </div>
         <QrImage className="passport__qr" value={passportUrl(shownCode)} label={`QR de ${unit ? 'este empaque' : 'este lote'}, ${shownCode}`} filename={`qr-${shownCode}`} download />
       </header>
@@ -199,6 +245,8 @@ export default function QrPassport() {
           <dd>{product.name}{isGreen ? `, SCA ${product.sca}` : `, tueste ${product.roast.toLowerCase()}`}</dd>
         </div>
       </dl>
+
+      <RutaFirmada codigo={codigo.toUpperCase()} lote={pass.code} />
 
       {(harvests.length > 0 || roasts.length > 0) && (
         <section className="registry">

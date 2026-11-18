@@ -753,3 +753,6 @@ main:focus { outline: none; }
   .dbx__explorer { grid-template-columns: 1fr; }
   .dbx__tablas { max-height: 220px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
+.ops__split > * { min-width: 0; }
+.ops__lines li, .dbx__perfil span, .dbx__ficha p, .dbx__ficha dd { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .ops__split { grid-template-columns: 1fr; } }

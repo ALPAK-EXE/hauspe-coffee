@@ -54,6 +54,15 @@ export default function Login() {
         <p className="auth__alt">
           ¿Aún no tienes cuenta? <Link to="/registro" state={location.state}>Crear cuenta</Link>
         </p>
+        <div className="dbx__ficha">
+          <strong>Cuentas de demostración</strong>
+          <span className="muted">Contraseña: demo123. Toca una para completar el formulario.</span>
+          <div className="chips dbx__ejemplos">
+            {[['Suscriptor', 'cliente@hauspe.pe'], ['Premium', 'premium@hauspe.pe'], ['HORECA', 'horeca@hauspe.pe'], ['Importador', 'import@nordicroasters.de']].map(([t, m]) => (
+              <button key={m} type="button" className="pill" onClick={() => { setEmail(m); setPassword('demo123'); setErrors({}) }}>{t}</button>
+            ))}
+          </div>
+        </div>
       </form>
     </div>
   )

@@ -49,7 +49,7 @@ export const passports = allProducts.map((p, i) => {
 })
 
 // Código de lote (HP-ORI-0925) o de empaque individual (HP-ORI-0925-U001)
-export const UNIT_RE = /^(.+)-u(\d{3})$/i
+export const UNIT_RE = /^(.+)-[us](\d{3})$/i
 export function getPassport(code) {
   const raw = (code || '').toLowerCase()
   const batch = raw.match(UNIT_RE)?.[1]
