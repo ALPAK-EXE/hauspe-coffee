@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import CartDrawer from './CartDrawer'
+import Intro from './Intro'
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
@@ -22,6 +23,7 @@ function ScrollManager() {
 export default function Layout() {
   return (
     <>
+      <Intro />
       <button
         type="button"
         className="skip"
