@@ -181,25 +181,12 @@ fieldset { border: 0; min-width: 0; }
 
 /* Logo */
 .logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: var(--forest); }
-.logo__mark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--forest);
-  color: var(--cream);
-  font-family: var(--serif);
-  font-size: 1.7rem;
-  font-weight: 600;
-  line-height: 1;
-  padding-bottom: 5px;
-}
+.logo__mark { flex: none; display: block; width: 44px; height: 44px; transition: transform 0.5s var(--ease); }
+.logo:hover .logo__mark { transform: rotate(-8deg); }
 .logo__word { display: flex; flex-direction: column; line-height: 1; }
 .logo__name { font-family: var(--serif); font-size: 1.65rem; font-weight: 600; letter-spacing: 0.01em; }
 .logo__sub { font-size: 0.625rem; letter-spacing: 0.34em; margin-top: 3px; font-weight: 500; }
 .logo--light { color: var(--cream); }
-.logo--light .logo__mark { background: var(--cream); color: var(--forest); }
 
 /* Navbar */
 .nav {
@@ -833,4 +820,53 @@ main:focus { outline: none; }
 @media (max-width: 560px) {
   .tabs { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .tabs__tab { padding: 10px 18px; white-space: nowrap; flex: none; }
+}
+
+/* ---------- Escena de Villa Rica (inicio) ---------- */
+.scene { --sy: 0; width: 100%; max-width: 560px; justify-self: end; filter: drop-shadow(0 30px 40px rgb(34 55 43 / 0.16)); }
+.scene svg { width: 100%; height: auto; overflow: visible; }
+.scene__tag text { font: 500 13px var(--sans); fill: var(--forest-deep); }
+.scene__tag rect { filter: drop-shadow(0 4px 8px rgb(34 55 43 / 0.15)); }
+.scene__vapor path { fill: none; stroke: #FBF6EC; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 90; stroke-dashoffset: 90; opacity: 0; }
+.scene__capa--1 { transform: translateY(calc(var(--sy) * 0.04px)); }
+.scene__capa--2 { transform: translateY(calc(var(--sy) * 0.08px)); }
+.scene__capa--3 { transform: translateY(calc(var(--sy) * 0.12px)); }
+.scene__capa--4 { transform: translateY(calc(var(--sy) * 0.16px)); }
+.scene__ruta { stroke-dasharray: 1; stroke-dashoffset: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .scene__sol { animation: sol 1.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .scene__niebla { animation: niebla 14s ease-in-out infinite alternate; }
+  .scene__capa { animation: capa 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .scene__capa--2 { animation-delay: 0.12s; }
+  .scene__capa--3 { animation-delay: 0.24s; }
+  .scene__capa--4 { animation-delay: 0.36s; }
+  .scene__ruta { animation: ruta 1.6s cubic-bezier(0.65, 0, 0.35, 1) 1s forwards; }
+  .scene__tag { opacity: 0; animation: tag 0.5s cubic-bezier(0.34, 1.6, 0.64, 1) forwards; transform-box: fill-box; transform-origin: center; }
+  .scene__tag--1 { animation-delay: 1s; }
+  .scene__tag--2 { animation-delay: 1.7s; }
+  .scene__tag--3 { animation-delay: 2.4s; }
+  .scene__taza { animation: capa 1s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both; }
+  .scene__vapor path { animation: vapor 3.4s ease-in-out 2.4s infinite; }
+  .scene__vapor path:nth-child(2) { animation-delay: 3.5s; }
+  .scene__vapor path:nth-child(3) { animation-delay: 4.6s; }
+  .scene__humo circle { animation: humo 3s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  .scene__humo circle:nth-child(2) { animation-delay: 1.5s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene__ruta { stroke-dashoffset: 0; }
+  .scene__vapor path { opacity: 0.6; stroke-dashoffset: 0; }
+  .scene__grano { display: none; }
+}
+@keyframes sol { from { transform: translateY(120px); opacity: 0.2; } }
+@keyframes capa { from { opacity: 0; translate: 0 60px; } }
+@keyframes ruta { to { stroke-dashoffset: 0; } }
+@keyframes tag { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes niebla { to { transform: translateX(40px); } }
+@keyframes humo { from { opacity: 0.8; transform: translateY(0) scale(0.7); } to { opacity: 0; transform: translateY(-24px) scale(1.4); } }
+
+/* Cifras en vivo de la base de datos en la banda verde */
+.band__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 860px) {
+  .scene { justify-self: center; max-width: 480px; }
 }

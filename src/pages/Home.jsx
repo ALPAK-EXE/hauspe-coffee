@@ -2,10 +2,24 @@ import useTitle from '../useTitle'
 import { Link } from 'react-router-dom'
 import { ArrowRight, QrCode } from '@phosphor-icons/react'
 import CoffeeBag from '../components/CoffeeBag'
-import { retailProducts, greenLots, fmtPEN } from '../data/products'
+import HeroScene from '../components/HeroScene'
+import { getDB } from '../db/browser'
+import { retailProducts, drinks, fmtPEN } from '../data/products'
+
+// Cifras leídas de la base de datos SQLite al cargar la página
+function cifras() {
+  const db = getDB()
+  if (!db) return null
+  return db.get(`SELECT
+    (SELECT COUNT(DISTINCT finca_origen) FROM LoteCafe) AS fincas,
+    (SELECT COUNT(*) FROM LoteCafe) AS lotes,
+    (SELECT COUNT(*) FROM FirmaEtapa) AS firmas,
+    (SELECT MAX(puntaje_sca) FROM LoteCafe) AS sca`)
+}
 
 export default function Home() {
   useTitle('')
+  const c = cifras()
   return (
     <>
       <section className="hero">
@@ -14,35 +28,29 @@ export default function Home() {
             <p className="eyebrow">Café de Villa Rica, Pasco</p>
             <h1 className="display-xl">Una pausa con raíces</h1>
             <p className="lead">
-              Café de especialidad tostado en Lima para tu taza, o verde para tostar donde estés.
+              Café de especialidad de Villa Rica, tostado en Lima para tu taza o exportado en verde. Cada lote
+              tiene su pasaporte: sabes qué finca lo cosechó y quién firmó cada etapa.
             </p>
             <div className="hero__cta">
               <Link to="/catalogo" className="btn btn--primary">
                 Ver los cafés <ArrowRight size={18} />
               </Link>
-              <Link to="/registro" className="btn btn--ghost">
-                Crear cuenta
+              <Link to="/catalogo?tab=barra" className="btn btn--ghost">
+                Ir a la cafetería
               </Link>
             </div>
           </div>
-          <div className="hero__art" aria-hidden="true">
-            <div className="hero__disc" />
-            <svg className="hero__steam" viewBox="0 0 120 70">
-              <path d="M30 66 C20 50 40 40 30 24 C24 14 32 6 30 2" />
-              <path d="M60 66 C50 48 72 38 60 20 C54 10 62 4 60 0" />
-              <path d="M90 66 C80 50 100 40 90 24 C84 14 92 6 90 2" />
-            </svg>
-            <CoffeeBag className="hero__bag hero__bag--a" name="Tarde" color="#5E3B2A" />
-            <CoffeeBag className="hero__bag hero__bag--b" name="Origen" color="#C98B3A" />
-            <CoffeeBag className="hero__bag hero__bag--c" name="Casa" color="#8A5A3C" />
-          </div>
+          <HeroScene />
         </div>
       </section>
 
       <section className="section">
         <div className="container">
           <h2 className="display-l measure">Tres cafés para tres momentos del día</h2>
-          <p className="lead measure">Tostados en lotes pequeños. Eliges el molido y la frecuencia.</p>
+          <p className="lead measure">
+            Tostados en lotes pequeños. Eliges el molido y la frecuencia.{' '}
+            <Link to="/catalogo" className="text-link">Ver los {retailProducts.length} cafés y las {drinks.length} bebidas</Link>
+          </p>
           <ul className="trio">
             {retailProducts.slice(0, 3).map((p, i) => (
               <li key={p.id} className={`trio__item trio__item--${i + 1}`}>
@@ -65,7 +73,7 @@ export default function Home() {
       <section className="band">
         <div className="container band__grid">
           <div>
-            <h2 className="display-l">Cinco fincas, una misma montaña</h2>
+            <h2 className="display-l">Fincas distintas, una misma montaña</h2>
             <p className="lead">
               Trabajamos con familias cafetaleras de Villa Rica, entre 1 650 y 2 010 metros de altura. Pagamos por
               calidad y contamos de dónde viene cada lote.
@@ -77,15 +85,19 @@ export default function Home() {
           <dl className="band__stats">
             <div>
               <dt>Fincas aliadas</dt>
-              <dd>{greenLots.length}</dd>
+              <dd>{c?.fincas ?? 6}</dd>
             </div>
             <div>
-              <dt>Altura máxima</dt>
-              <dd>2 010 msnm</dd>
+              <dt>Lotes con pasaporte</dt>
+              <dd>{c?.lotes ?? 13}</dd>
+            </div>
+            <div>
+              <dt>Etapas firmadas por inspectores</dt>
+              <dd>{c?.firmas ?? 35}</dd>
             </div>
             <div>
               <dt>Mejor puntaje SCA</dt>
-              <dd>87.5</dd>
+              <dd>{c?.sca ?? 87.5}</dd>
             </div>
           </dl>
         </div>
