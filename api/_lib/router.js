@@ -1,4 +1,4 @@
-// Enrutador único de la API de HausPe. Lo usan la función serverless de Vercel (api/[...path].js)
+// Enrutador único de la API de HausPe. Lo usan la función serverless de Vercel (api/main.js)
 // y el servidor local (npm run dev). Una sola función evita el límite de funciones del plan gratuito
 // y comparte una única instancia de PrismaClient.
 //
@@ -185,7 +185,10 @@ export async function handler(req, res) {
   }
   try {
     const url = new URL(req.url, 'http://localhost')
-    const camino = url.pathname.replace(/^\/api/, '') || '/'
+    // En Vercel, vercel.json reescribe /api/<ruta> → /api/main?__p=<ruta>; en local llega la ruta original
+    const reescrita = url.searchParams.get('__p')
+    url.searchParams.delete('__p')
+    const camino = reescrita !== null ? '/' + reescrita.replace(/^\/+/, '') : url.pathname.replace(/^\/api/, '') || '/'
     const metodo = req.method === 'HEAD' ? 'GET' : req.method
     let existe = false
     for (const [m, re, claves, fn, acceso] of R) {

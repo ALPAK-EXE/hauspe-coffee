@@ -5,7 +5,7 @@ Prototipo académico: tienda, cafetería, trazabilidad con QR y panel interno. R
 ## Arquitectura
 
 ```
-Navegador (React)  ──fetch /api──▶  api/[...path].js (Vercel)  ──Prisma──▶  MySQL 8 (servidor del equipo)
+Navegador (React)  ──fetch /api──▶  api/main.js (Vercel)  ──Prisma──▶  MySQL 8 (servidor del equipo)
         │                                  └─ api/_lib/router.js, repo.js, admin.js, tests.js
         └─ si /api/health falla ──▶ SQLite local (sql.js) como respaldo: "Modo sin conexión"
 ```
