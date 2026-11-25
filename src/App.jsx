@@ -15,6 +15,9 @@ import Order from './pages/Order'
 import QrPassport from './pages/QrPassport'
 import Matcher from './pages/Matcher'
 import Ops from './pages/Ops'
+import AdminLayout from './components/AdminLayout'
+import AdminLogin from './pages/AdminLogin'
+import { RedirigirAlPanel, SoloCliente, SoloPersonal } from './components/Rutas'
 import Account from './pages/Account'
 import Guide from './pages/Guide'
 
@@ -47,10 +50,14 @@ export default function App() {
               <Route path="/pedido/:id" element={<Order />} />
               <Route path="/qr/:codigo" element={<QrPassport />} />
               <Route path="/matcher" element={<Matcher />} />
-              <Route path="/operaciones" element={<Ops />} />
-              <Route path="/mi-cuenta" element={<Account />} />
+              <Route path="/operaciones" element={<RedirigirAlPanel />} />
+              <Route path="/mi-cuenta" element={<SoloCliente><Account /></SoloCliente>} />
               <Route path="/preparar" element={<Guide />} />
               <Route path="*" element={<NotFound />} />
+            </Route>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route path="login" element={<AdminLogin />} />
+              <Route index element={<SoloPersonal><Ops /></SoloPersonal>} />
             </Route>
           </Routes>
         </CartProvider>

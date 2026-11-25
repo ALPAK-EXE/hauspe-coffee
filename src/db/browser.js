@@ -7,7 +7,7 @@ import schema from './schema.sql?raw'
 import { crearBaseDeDatos } from './core'
 import { seed } from './seed'
 
-const KEY = 'hauspe_sqlite_v2'
+const KEY = 'hauspe_sqlite_v3'
 let SQL = null
 let hdb = null
 let version = 0

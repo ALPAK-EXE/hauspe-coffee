@@ -27,7 +27,11 @@ export async function seed(hdb) {
     ['BA1', 'Ana Flores', 'BARISTA'],
     ['AD1', 'Administrador HausPe', 'ADMIN'],
   ]
-  empleados.forEach((e) => r('INSERT INTO Empleado (codigo, nombre, rol) VALUES (?,?,?)', e))
+  // Cuatro tienen acceso al panel /admin (contraseña: admin123)
+  const claveStaff = await sha256('admin123')
+  const acceso = { AD1: 'admin@hauspe.pe', BA1: 'barista@hauspe.pe', RD1: 'almacen@hauspe.pe', IC1: 'inspector@hauspe.pe' }
+  empleados.forEach((e) => r('INSERT INTO Empleado (codigo, nombre, rol, email, password_hash) VALUES (?,?,?,?,?)',
+    [...e, acceso[e[0]] ?? null, acceso[e[0]] ? claveStaff : null]))
 
   // ---- Zonas de reparto
   ;[['Villa El Salvador', 8], ['San Juan de Miraflores', 8], ['Chorrillos', 9], ['Santiago de Surco', 10], ['Barranco', 10],

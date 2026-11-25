@@ -9,8 +9,7 @@ import { ZERO_HASH, ensureChain, getChain, verifyChain } from '../data/chain'
 import { addLead, getHarvests, getRoasts } from '../data/ops'
 import { getPassport, unitOf } from '../data/passports'
 import { getProduct } from '../data/products'
-import { getDB, useDBVersion } from '../db/browser'
-import * as repo from '../db/repo'
+import { api, useDatos } from '../db/data'
 import { HUMIDITY_RANGE, humidityAlert, outOfRange, seriesFor } from '../data/telemetry'
 
 const short = (h) => `0x${h.slice(0, 10)}…${h.slice(-6)}`
@@ -58,7 +57,7 @@ function LeadForm({ code }) {
       return
     }
     addLead({ whatsapp: whatsapp.trim(), source: code })
-    try { repo.registrarLead(getDB(), { whatsapp: whatsapp.trim(), codigo_qr: code, origen: 'QR' }) } catch { /* el lead ya quedó en el registro local */ }
+    api.registrarLead({ whatsapp: whatsapp.trim(), codigo_qr: code, origen: 'QR' }).catch(() => { /* el lead ya quedó en el registro local */ })
     setError('')
     setDone(true)
   }
@@ -147,13 +146,9 @@ const ETAPA = { FINCA: 'Finca (cosecha)', DARK_STORE: 'Dark store / almacén', T
 
 // Ruta completa del lote leída de la base de datos: cada etapa firmada por un inspector y encadenada con SHA-256
 function RutaFirmada({ codigo, lote }) {
-  useDBVersion()
-  const [data, setData] = useState(null)
-  useEffect(() => {
-    let vivo = true
-    repo.pasaporte(getDB(), codigo).then((d) => vivo && setData(d || null))
-    return () => { vivo = false }
-  }, [codigo])
+  const { data, error, cargando } = useDatos(() => api.pasaporte(codigo), [codigo])
+  if (cargando && !data) return <p className="muted" role="status">Leyendo la ruta firmada desde la base de datos...</p>
+  if (error && !data) return <p className="notice notice--warn" role="alert">No se pudo leer la ruta del lote: {error}</p>
   if (!data) return null
   const v = data.verificacion
   const l = data.lote

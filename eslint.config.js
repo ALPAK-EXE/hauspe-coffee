@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // Servidor (API de Vercel, Prisma, scripts) y configuración: corren en Node, no en el navegador
+  {
+    files: ['api/**/*.js', 'prisma/**/*.mjs', 'scripts/**/*.mjs', 'vite.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

@@ -1,10 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { load, save } from './storage'
-import { getDB } from '../db/browser'
-import * as repo from '../db/repo'
-
-const SESSION_KEY = 'hauspe_session'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { api } from '../db/data'
 
 const AuthContext = createContext(null)
 
@@ -25,26 +21,41 @@ export function toSession(c) {
   }
 }
 
-function sesionInicial() {
-  const s = load(SESSION_KEY, null)
-  const db = getDB()
-  if (!s || !db || typeof s.id !== 'number') return null
-  return toSession(repo.getCliente(db, s.id))
-}
+// Fila de la tabla Empleado (personal del panel /admin)
+const toStaff = (e) => (e ? { id: e.id, name: e.nombre, email: e.email, rol: e.rol, codigo: e.codigo, pestanas: e.pestanas || [] } : null)
 
+/**
+ * Hay UNA sola sesión a la vez: de cliente (tienda) o de personal (panel /admin).
+ * La sesión real vive en una cookie httpOnly que pone el servidor; aquí solo se guarda lo que se muestra en pantalla.
+ */
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(sesionInicial)
+  const [estado, setEstado] = useState({ user: null, staff: null, cargando: true })
 
-  const iniciar = useCallback((cliente) => {
-    const session = toSession(cliente)
-    save(SESSION_KEY, session)
-    setUser(session)
+  const aplicar = useCallback((yo) => {
+    if (yo?.tipo === 'cliente') setEstado({ user: toSession(yo.cliente), staff: null, cargando: false })
+    else if (yo?.tipo === 'personal') setEstado({ user: null, staff: toStaff(yo), cargando: false })
+    else setEstado({ user: null, staff: null, cargando: false })
   }, [])
 
-  // Inserta en las tablas Cliente y Membresia (contraseña cifrada con SHA-256)
+  // Al abrir la app se pregunta al servidor quién tiene la sesión (la cookie vive 8 horas)
+  useEffect(() => {
+    let vivo = true
+    try { localStorage.removeItem('hauspe_session') } catch { /* sesión antigua guardada en el navegador */ }
+    api.yo().then((yo) => vivo && aplicar(yo)).catch(() => vivo && aplicar(null))
+    return () => { vivo = false }
+  }, [aplicar])
+
+  // Cualquier respuesta 401 de la API (sesión vencida) cierra la sesión en pantalla
+  useEffect(() => {
+    const vencida = () => setEstado((e) => (e.user || e.staff ? { user: null, staff: null, cargando: false } : e))
+    window.addEventListener('hp:sesion-vencida', vencida)
+    return () => window.removeEventListener('hp:sesion-vencida', vencida)
+  }, [])
+
+  // Inserta en las tablas Cliente y Membresia (contraseña cifrada con bcrypt en el servidor)
   const register = useCallback(async (data) => {
     try {
-      const cliente = await repo.registrarCliente(getDB(), {
+      const cliente = await api.registrar({
         nombre: data.name,
         email: data.email,
         password: data.password,
@@ -55,34 +66,52 @@ export function AuthProvider({ children }) {
         ruc_taxid: data.taxId,
         pais: data.country,
       })
-      iniciar(cliente)
+      aplicar({ tipo: 'cliente', cliente })
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e.message.includes('registrado') ? 'Ya existe una cuenta con este correo.' : e.message }
     }
-  }, [iniciar])
+  }, [aplicar])
 
   const login = useCallback(async (email, password) => {
-    const cliente = await repo.login(getDB(), email, password)
-    if (!cliente) return { ok: false, error: 'Correo o contraseña incorrectos.' }
-    iniciar(cliente)
-    return { ok: true }
-  }, [iniciar])
-
-  const refreshUser = useCallback(() => {
-    setUser((u) => (u ? toSession(repo.getCliente(getDB(), u.id)) : u))
-  }, [])
-
-  const logout = useCallback(() => {
     try {
-      localStorage.removeItem(SESSION_KEY)
-    } catch {
-      /* sin almacenamiento */
+      const cliente = await api.login(email, password)
+      if (!cliente) return { ok: false, error: 'Correo o contraseña incorrectos.' }
+      aplicar({ tipo: 'cliente', cliente })
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e.message }
     }
-    setUser(null)
+  }, [aplicar])
+
+  const loginStaff = useCallback(async (email, password) => {
+    try {
+      const empleado = await api.loginPersonal(email, password)
+      if (!empleado) return { ok: false, error: 'Correo o contraseña incorrectos.' }
+      aplicar(empleado)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e.message }
+    }
+  }, [aplicar])
+
+  const refreshUser = useCallback(async () => {
+    try { aplicar(await api.yo()) } catch { /* sin red: se conserva lo que se ve */ }
+  }, [aplicar])
+
+  // Cierra la sesión de cliente o de personal (borra la cookie en el servidor)
+  const logout = useCallback(async () => {
+    setEstado({ user: null, staff: null, cargando: false })
+    try { await api.cerrarSesion() } catch { /* aunque falle la red, en pantalla ya se cerró */ }
   }, [])
 
-  const value = useMemo(() => ({ user, register, login, logout, refreshUser }), [user, register, login, logout, refreshUser])
+  const { user, staff, cargando } = estado
+  const value = useMemo(
+    () => ({ user, staff, cargando, register, login, loginStaff, logout, refreshUser }),
+    [user, staff, cargando, register, login, loginStaff, logout, refreshUser],
+  )
+  // Hasta saber si hay sesión no se pinta nada: así las rutas protegidas no redirigen por error
+  if (cargando) return <p style={{ padding: 40, fontFamily: 'Inter, sans-serif' }}>Comprobando tu sesión…</p>
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

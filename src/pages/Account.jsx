@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getOrders } from '../context/CartContext'
 import { STATUS } from '../data/ops'
 import { fmtPEN, fmtUSD } from '../data/products'
+import { api, useDatos } from '../db/data'
 import {
   SUB_PLANS,
   cancelSub,
@@ -92,6 +93,60 @@ function SubCard({ sub, onChange }) {
   )
 }
 
+const ESTADO_BD = { PAGADO: 'Pagado', EN_PREPARACION: 'En preparación', LISTO: 'Listo', DESPACHADO: 'Despachado', ENTREGADO: 'Entregado', COTIZADO: 'Cotizado', CANCELADO: 'Cancelado' }
+const dia = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+
+// Lo que la base de datos tiene guardado de ESTA cuenta: pedidos con su comprobante y suscripciones.
+// La API solo devuelve los datos del cliente que tiene la sesión abierta.
+function MisDatosBD() {
+  const rp = useDatos(() => api.misPedidos())
+  const rs = useDatos(() => api.misSuscripciones())
+  return (
+    <>
+      <section className="acct__sec" aria-label="Comprobantes registrados">
+        <h2 className="display-m">Pedidos y comprobantes registrados</h2>
+        {rp.error && !rp.data && <p className="notice notice--warn" role="alert">No se pudieron leer tus pedidos: {rp.error}</p>}
+        {!rp.data && !rp.error && <p className="muted" role="status">Leyendo tus pedidos desde la base de datos...</p>}
+        {rp.data && (rp.data.length ? (
+          <ul className="ops__list">
+            {rp.data.map((p) => (
+              <li key={p.codigo} className="ops__item">
+                <div>
+                  <strong>Pedido {p.codigo}</strong>
+                  <span className="muted">{dia(p.fecha)}{p.numero_comprobante ? `, ${p.comprobante_tipo === 'COTIZACION' ? 'Cotización' : p.comprobante_tipo === 'FACTURA' ? 'Factura' : 'Boleta'} ${p.numero_comprobante}` : ''}</span>
+                  <span className="muted">{p.items.map((i) => `${i.cantidad} x ${i.nombre} ${i.descripcion}`).join('; ')}</span>
+                </div>
+                <div className="ops__act">
+                  <strong className="money">{p.moneda === 'USD' ? fmtUSD(p.total) : fmtPEN(p.total)}</strong>
+                  <span className="badge">{ESTADO_BD[p.estado] || p.estado}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted">Todavía no hay pedidos guardados en tu cuenta.</p>)}
+      </section>
+      <section className="acct__sec" aria-label="Suscripciones registradas">
+        <h2 className="display-m">Suscripciones registradas</h2>
+        {!rs.data && !rs.error && <p className="muted" role="status">Leyendo tus suscripciones...</p>}
+        {rs.error && !rs.data && <p className="notice notice--warn" role="alert">No se pudieron leer tus suscripciones: {rs.error}</p>}
+        {rs.data && (rs.data.length ? (
+          <ul className="ops__list">
+            {rs.data.map((x) => (
+              <li key={x.id_suscripcion} className="ops__item">
+                <div>
+                  <strong>{x.producto} {x.presentacion}</strong>
+                  <span className="muted">Frecuencia {x.frecuencia.toLowerCase()}, próximo envío {dia(x.proximo_envio)}</span>
+                </div>
+                <div className="ops__act"><span className="badge">{x.estado}</span></div>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted">No tienes suscripciones activas.</p>)}
+      </section>
+    </>
+  )
+}
+
 export default function Account() {
   useTitle('Mi cuenta')
   const { user } = useAuth()
@@ -136,6 +191,8 @@ export default function Account() {
           )}
         </section>
       )}
+
+      <MisDatosBD />
 
       <section className="acct__sec" aria-label="Historial de pedidos">
         <h2 className="display-m">Historial de pedidos</h2>

@@ -35,6 +35,7 @@ function validate(values, segment) {
 export default function Register() {
   useTitle('Crear cuenta')
   const [params] = useSearchParams()
+  const [busy, setBusy] = useState(false)
   const [segment, setSegment] = useState(params.get('tipo') === 'b2b' ? 'b2b' : 'b2c')
   const [values, setValues] = useState({
     name: '',
@@ -83,7 +84,9 @@ export default function Register() {
         businessType: values.businessType,
       })
     }
+    setBusy(true)
     const res = await register(payload)
+    setBusy(false)
     if (!res.ok) return setFormError(res.error)
     navigate(location.state?.from || '/catalogo', { replace: true })
   }
@@ -173,8 +176,8 @@ export default function Register() {
             {formError}
           </p>
         )}
-        <button type="submit" className="btn btn--primary btn--block">
-          Crear cuenta
+        <button type="submit" className="btn btn--primary btn--block" disabled={busy}>
+          {busy ? 'Creando cuenta...' : 'Crear cuenta'}
         </button>
         <p className="auth__alt">
           ¿Ya tienes cuenta? <Link to="/login" state={location.state}>Ingresar</Link>

@@ -281,7 +281,9 @@ CREATE TABLE Empleado (
   id_empleado INTEGER PRIMARY KEY AUTOINCREMENT,
   codigo      TEXT NOT NULL UNIQUE,      -- IC1, IE1, IP1, RD1, BA1 ...
   nombre      TEXT NOT NULL,
-  rol         TEXT NOT NULL CHECK (rol IN ('INSPECTOR_COSECHA','INSPECTOR_ENTREGA','INSPECTOR_PRODUCCION','REPARTIDOR','BARISTA','ADMIN'))
+  rol         TEXT NOT NULL CHECK (rol IN ('INSPECTOR_COSECHA','INSPECTOR_ENTREGA','INSPECTOR_PRODUCCION','REPARTIDOR','BARISTA','ADMIN')),
+  email         TEXT UNIQUE,          -- acceso al panel /admin (solo personal con cuenta)
+  password_hash TEXT
 );
 
 CREATE TABLE EtapaTrazabilidad (

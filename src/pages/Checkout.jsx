@@ -8,17 +8,17 @@ import { nextNumber, useCart } from '../context/CartContext'
 import { makeAlert } from '../data/ops'
 import { createSubs } from '../data/subs'
 import { canBuyRetail, canQuoteExport, DESTINATIONS, fmtPEN, fmtUSD, IGV_RATE, round2, SACK_KG, volumeDiscount } from '../data/products'
-import { getDB } from '../db/browser'
-import * as repo from '../db/repo'
+import { api, useDatos } from '../db/data'
 
 const FRECUENCIA = { weekly: 'SEMANAL', biweekly: 'QUINCENAL', monthly: 'MENSUAL' }
 
 // Guarda el pedido en la base de datos: Pedido, DetallePedido, Pago, Comprobante, Entrega y bolsas con QR
 async function guardarEnBD(user, lines, { distrito, opCode }) {
-  const db = getDB()
   const usd = lines[0].currency === 'USD'
-  const items = lines.map((l) => {
-    const v = repo.varianteDe(db, l.product.id, usd ? null : l.product.kind === 'drink' ? l.size.label : l.pres.db)
+  const variantes = await Promise.all(lines.map((l) => api.varianteDe(l.product.id, usd ? null : l.product.kind === 'drink' ? l.size.label : l.pres.db)))
+  const items = lines.map((l, i) => {
+    const v = variantes[i]
+    if (!v) throw new Error('Producto inexistente en la base de datos')
     if (usd) {
       const unit = lines.length === 1 ? round2(l.product.pricePerKg * SACK_KG) : round2((l.quote.base - l.quote.discount) / l.item.qty)
       return { id_variante: v.id_variante, cantidad: l.item.qty, precio_unitario: unit, configuracion: { incoterm: l.item.incoterm, destino: l.item.dest } }
@@ -28,7 +28,7 @@ async function guardarEnBD(user, lines, { distrito, opCode }) {
   })
   const plan = lines.find((l) => l.plan && l.plan.id !== 'once')?.plan.id
   const first = lines[0].item
-  return repo.crearPedido(db, {
+  return api.crearPedido({
     id_cliente: user.id,
     items,
     distrito: usd ? null : distrito,
@@ -90,7 +90,8 @@ export default function Checkout() {
   const [dni, setDni] = useState('')
   const [errors, setErrors] = useState({})
   const [paying, setPaying] = useState(false)
-  const zonas = repo.listarZonas(getDB())
+  const { data: zonasDB, error: errorZonas, cargando: cargandoZonas } = useDatos(() => api.listarZonas())
+  const zonas = zonasDB ?? []
   const [distrito, setDistrito] = useState('Villa El Salvador')
   const submitted = useRef(false) // evita pedidos duplicados con doble clic
 
@@ -143,10 +144,11 @@ export default function Checkout() {
     submitted.current = true
     setPaying(true)
     // Simula la validación del pago
-    setTimeout(async () => {
+    ;(async () => {
       let dbPedido
       try {
-        dbPedido = await guardarEnBD(user, lines, { distrito, opCode: code.trim() })
+        // La pausa de 900 ms del pago simulado corre en paralelo con el guardado en la base: no se suman
+        ;[dbPedido] = await Promise.all([guardarEnBD(user, lines, { distrito, opCode: code.trim() }), new Promise((r) => setTimeout(r, 900))])
       } catch (e) {
         console.error('No se guardó en la base de datos', e)
         setErrors({ code: `Error de base de datos: ${e.message}` })
@@ -185,7 +187,7 @@ export default function Checkout() {
       createSubs(order, user)
       navigate(`/pedido/${order.id}`, { replace: true })
       clear()
-    }, 900)
+    })()
   }
 
   return (
@@ -228,7 +230,8 @@ export default function Checkout() {
           {hasPen ? (
             <>
               <h2 className="display-s">Entrega</h2>
-              <Field label="Distrito de entrega" as="select" value={distrito} onChange={(e) => setDistrito(e.target.value)} hint="Despacho desde nuestra dark store en menos de 24 horas.">
+              <Field label="Distrito de entrega" as="select" value={distrito} onChange={(e) => setDistrito(e.target.value)} error={errorZonas ? `No se pudieron cargar las zonas: ${errorZonas}` : undefined} hint={cargandoZonas ? 'Cargando zonas de reparto...' : 'Despacho desde nuestra dark store en menos de 24 horas.'}>
+                {!zonas.length && <option value="Villa El Salvador">Villa El Salvador</option>}
                 {zonas.map((z) => <option key={z.distrito} value={z.distrito}>{z.distrito} ({fmtPEN(z.costo_envio)})</option>)}
               </Field>
               <h2 className="display-s">Paga con Yape</h2>
@@ -273,7 +276,7 @@ export default function Checkout() {
               </p>
             </>
           )}
-          <button type="submit" className="btn btn--primary btn--block" disabled={paying}>
+          <button type="submit" className="btn btn--primary btn--block" disabled={paying || (hasPen && cargandoZonas)}>
             {paying ? 'Validando pago...' : hasPen ? 'Confirmar pago' : 'Solicitar cotización'}
           </button>
         </form>

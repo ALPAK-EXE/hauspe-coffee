@@ -954,3 +954,30 @@ main:focus { outline: none; }
 .timer__time { font-family: var(--serif); font-size: 2.4rem; color: var(--forest); line-height: 1; }
 .timer__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 860px) { .guide__grid { grid-template-columns: 1fr; } .guide__datos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Estado de la base de datos (MySQL con Prisma / respaldo local) ---------- */
+.dbx__estado { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--paper); font-size: 0.875rem; }
+.dbx__estado strong { color: var(--forest-deep); }
+.dbx__estado span { color: var(--muted); overflow-wrap: anywhere; min-width: 0; flex: 1 1 320px; }
+.dbx__estado.is-ok { border-color: var(--ok); }
+.dbx__estado.is-ok strong::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: var(--ok); }
+.dbx__estado.is-warn { border-color: var(--terracotta); background: #f3e3c6; }
+.dbx__estado.is-warn strong { color: #4a3414; }
+.dbx__modelo { display: grid; gap: 12px; }
+.dbx__modelos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.dbx__modelos details { padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-field); background: var(--paper); }
+.dbx__modelos summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.dbx__modelos .dbx__cols { flex-direction: column; margin-top: 8px; }
+.modo-aviso { position: fixed; left: 12px; bottom: 12px; z-index: 40; margin: 0; padding: 6px 12px; border: 1px solid var(--sand); border-radius: 999px; background: var(--sand-soft); color: var(--forest-deep); font-size: 0.75rem; box-shadow: 0 4px 14px rgb(34 55 43 / 0.12); }
+
+/* ---------- Área del personal (/admin): barra propia ---------- */
+.adminbar { position: sticky; top: 0; z-index: 30; background: var(--forest-deep); color: var(--cream); border-bottom: 1px solid rgb(255 255 255 / 0.12); }
+.adminbar__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; min-height: 64px; padding-block: 8px; }
+.adminbar__brand { display: flex; align-items: center; gap: 14px; }
+.adminbar__tag { padding: 3px 10px; border: 1px solid rgb(255 255 255 / 0.3); border-radius: 999px; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.adminbar__user { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.adminbar__who { display: inline-flex; align-items: center; gap: 10px; }
+.adminbar__who span { display: grid; line-height: 1.2; }
+.adminbar__who small { opacity: 0.75; font-size: 0.75rem; }
+.adminbar .btn--ghost { color: var(--cream); border-color: rgb(255 255 255 / 0.4); }
+.adminbar .text-link { color: var(--cream); }

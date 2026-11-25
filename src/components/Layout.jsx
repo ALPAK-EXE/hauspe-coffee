@@ -4,6 +4,7 @@ import Navbar from './Navbar'
 import Footer from './Footer'
 import CartDrawer from './CartDrawer'
 import Intro from './Intro'
+import ModoAviso from './ModoAviso'
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
@@ -42,6 +43,7 @@ export default function Layout() {
       </main>
       <Footer />
       <CartDrawer />
+      <ModoAviso />
     </>
   )
 }

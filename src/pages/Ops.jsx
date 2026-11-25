@@ -8,6 +8,8 @@ import { sealChange } from '../data/chain'
 import { addHarvest, addRoast, getHarvests, getRoasts } from '../data/ops'
 import { passports } from '../data/passports'
 import { REMINDER_DAYS, daysUntil, fmtDay, getAllSubs, isDue, pushChat, reminderText, subInfo, updateSub } from '../data/subs'
+import { useAuth } from '../context/AuthContext'
+import { ETIQUETA_ROL } from '../permisos.js'
 import { BaseDeDatos, ColaPedidos, Crm, DashboardLotes, Trazabilidad } from './OpsDB'
 import { HUMIDITY_RANGE, addReadings, getReadings, outOfRange, simulateReadings } from '../data/telemetry'
 
@@ -289,15 +291,27 @@ function QrLabels() {
 
 export default function Ops() {
   useTitle('Panel interno')
-  const [tab, setTab] = useState(() => new URLSearchParams(window.location.hash.split('?')[1]).get('tab') || 'barista')
+  const { staff } = useAuth()
+  // Cada rol ve solo sus pestañas (la API también lo exige en el servidor)
+  const permitidas = TABS.filter((t) => staff.pestanas.includes(t.id))
+  const [elegida, setTab] = useState(() => new URLSearchParams(window.location.hash.split('?')[1]).get('tab'))
+  const tab = permitidas.some((t) => t.id === elegida) ? elegida : permitidas[0]?.id
+  if (!permitidas.length) {
+    return (
+      <div className="container page empty">
+        <h1 className="display-l">Sin secciones asignadas</h1>
+        <p className="muted">Tu rol ({ETIQUETA_ROL[staff.rol] || staff.rol}) no tiene pestañas en el panel.</p>
+      </div>
+    )
+  }
   return (
     <div className="container page ops">
       <header className="page__head">
         <h1 className="display-l">Panel interno</h1>
-        <p className="lead measure">Operación de HausPe conectada a la base de datos: barista, dark store, trazabilidad firmada, sensores, CRM y la base de datos SQLite con sus pruebas.</p>
+        <p className="lead measure">{ETIQUETA_ROL[staff.rol] || staff.rol}: estas son las secciones de tu rol, conectadas a la base de datos.</p>
       </header>
       <div className="tabs tabs--wrap" role="tablist" aria-label="Secciones del panel">
-        {TABS.map((t) => (
+        {permitidas.map((t) => (
           <button key={t.id} role="tab" id={`tab-${t.id}`} aria-selected={tab === t.id} aria-controls="ops-panel" className="tabs__tab" onClick={() => setTab(t.id)}>
             {t.label}
           </button>

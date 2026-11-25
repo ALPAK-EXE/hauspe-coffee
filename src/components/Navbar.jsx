@@ -14,7 +14,7 @@ const LINKS = [
 
 export default function Navbar() {
   const [menu, setMenu] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, staff, logout } = useAuth()
   const { totals, setOpen, clear } = useCart()
   const { pathname } = useLocation()
 
@@ -24,7 +24,7 @@ export default function Navbar() {
     setMenu(false)
   }
 
-  const firstName = user?.name?.split(' ')[0]
+  const firstName = (user || staff)?.name?.split(' ')[0]
 
   // Esc cierra el menú móvil
   useEffect(() => {
@@ -58,20 +58,22 @@ export default function Navbar() {
               Mi cuenta
             </NavLink>
           )}
-          <NavLink to="/operaciones" className="nav__link nav__link--internal">
-            Panel interno
-          </NavLink>
+          {staff && (
+            <NavLink to="/admin" className="nav__link nav__link--internal">
+              Ir al panel
+            </NavLink>
+          )}
           <Link to="/sumate#novedades" className="btn btn--primary btn--sm nav__cta">
             Recibe novedades
           </Link>
           <div className="nav__auth nav__auth--mobile">
-            <AuthArea user={user} firstName={firstName} logout={handleLogout} />
+            <AuthArea user={user} staff={staff} firstName={firstName} logout={handleLogout} />
           </div>
         </nav>
 
         <div className="nav__actions">
           <div className="nav__auth nav__auth--desktop">
-            <AuthArea user={user} firstName={firstName} logout={handleLogout} />
+            <AuthArea user={user} staff={staff} firstName={firstName} logout={handleLogout} />
           </div>
           <button
             type="button"
@@ -98,7 +100,24 @@ export default function Navbar() {
   )
 }
 
-function AuthArea({ user, firstName, logout }) {
+function AuthArea({ user, staff, firstName, logout }) {
+  if (staff) {
+    return (
+      <>
+        <span className="nav__user" title={staff.email}>
+          <UserCircle size={20} />
+          <span>
+            Hola, {firstName}
+            <small>Personal · {staff.codigo}</small>
+          </span>
+        </span>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={logout}>
+          <SignOut size={16} />
+          Cerrar sesión
+        </button>
+      </>
+    )
+  }
   if (!user) {
     return (
       <Link to="/login" className="nav__link nav__user">

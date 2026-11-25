@@ -15,7 +15,7 @@ export default function Footer() {
           <Link to="/sumate">Súmate</Link>
           <Link to="/matcher">Encuentra tu café</Link>
           <Link to="/registro">Crear cuenta</Link>
-          <Link to="/operaciones">Panel interno</Link>
+          <Link to="/admin/login">Acceso del personal</Link>
         </nav>
       </div>
       <div className="container footer__legal">Prototipo académico - información de ejemplo</div>

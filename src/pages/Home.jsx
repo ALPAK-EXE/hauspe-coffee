@@ -3,23 +3,13 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, QrCode } from '@phosphor-icons/react'
 import CoffeeBag from '../components/CoffeeBag'
 import HeroScene from '../components/HeroScene'
-import { getDB } from '../db/browser'
+import { api, useDatos } from '../db/data'
 import { retailProducts, drinks, fmtPEN } from '../data/products'
-
-// Cifras leídas de la base de datos SQLite al cargar la página
-function cifras() {
-  const db = getDB()
-  if (!db) return null
-  return db.get(`SELECT
-    (SELECT COUNT(DISTINCT finca_origen) FROM LoteCafe) AS fincas,
-    (SELECT COUNT(*) FROM LoteCafe) AS lotes,
-    (SELECT COUNT(*) FROM FirmaEtapa) AS firmas,
-    (SELECT MAX(puntaje_sca) FROM LoteCafe) AS sca`)
-}
 
 export default function Home() {
   useTitle('')
-  const c = cifras()
+  // Cifras leídas de la base de datos (MySQL o, sin conexión, la base local); si falla, se muestran las de ejemplo
+  const { data: c } = useDatos(() => api.cifrasInicio())
   return (
     <>
       <section className="hero">

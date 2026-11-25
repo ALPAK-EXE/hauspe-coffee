@@ -10,6 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
+  const [busy, setBusy] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -22,7 +23,9 @@ export default function Login() {
     setErrors(found)
     setFormError('')
     if (Object.keys(found).length) return
+    setBusy(true)
     const res = await login(email, password)
+    setBusy(false)
     if (!res.ok) return setFormError(res.error)
     navigate(location.state?.from || '/catalogo', { replace: true })
   }
@@ -48,8 +51,8 @@ export default function Login() {
             {formError}
           </p>
         )}
-        <button type="submit" className="btn btn--primary btn--block">
-          Ingresar
+        <button type="submit" className="btn btn--primary btn--block" disabled={busy}>
+          {busy ? 'Ingresando...' : 'Ingresar'}
         </button>
         <p className="auth__alt">
           ¿Aún no tienes cuenta? <Link to="/registro" state={location.state}>Crear cuenta</Link>

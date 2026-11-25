@@ -42,6 +42,20 @@ export async function login(hdb, email, password) {
   return getCliente(hdb, c.id_cliente)
 }
 
+/** Login del personal (tabla Empleado) en la base local. */
+export async function loginEmpleado(hdb, email, password) {
+  const e = hdb.get('SELECT id_empleado, codigo, nombre, rol, email, password_hash FROM Empleado WHERE email = ?', [String(email).trim().toLowerCase()])
+  if (!e || e.password_hash !== (await sha256(password))) return null
+  return { id_empleado: e.id_empleado, codigo: e.codigo, nombre: e.nombre, rol: e.rol, email: e.email }
+}
+
+export function listarSuscripciones(hdb, id_cliente) {
+  return hdb.all(
+    `SELECT s.id_suscripcion, p.nombre AS producto, v.descripcion AS presentacion, s.frecuencia, s.estado, s.inicio, s.proximo_envio
+     FROM SuscripcionCafe s JOIN VarianteProducto v ON v.id_variante = s.id_variante JOIN Producto p ON p.id_producto = v.id_producto
+     WHERE s.id_cliente = ? ORDER BY s.id_suscripcion DESC`, [id_cliente])
+}
+
 export function getCliente(hdb, id) {
   const c = hdb.get(
     `SELECT c.id_cliente, c.nombre, c.email, c.telefono, c.tipo_segmento, c.tipo_b2b, c.empresa, c.ruc_taxid, c.pais, c.idioma, c.creado_en,
