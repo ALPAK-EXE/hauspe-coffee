@@ -33,6 +33,7 @@ const prueba = async (nombre, fn) => {
     fallos++
     log(`  FALLA ${nombre}: ${e.message.split('\n')[0]}`)
     // una prueba que falla no debe dejar su sesión abierta para las siguientes
+    await page.screenshot({ path: 'audit/fallo-' + fallos + '.png' }).catch(() => {})
     await page.context().clearCookies().catch(() => {})
   }
 }
@@ -62,7 +63,9 @@ async function entrarPersonal(page, correo, destino = '') {
   await page.getByRole('button', { name: 'Ingresar al panel' }).click()
   await page.waitForURL((u) => u.hash.startsWith('#/admin') && !u.hash.includes('login'))
 }
-const pestanas = async (page) => (await page.getByRole('tab').allInnerTexts()).map((t) => t.trim())
+// Secciones del menú lateral del panel (solo las que permite el rol)
+const pestanas = async (page) => (await page.locator('.a-nav a').allInnerTexts()).map((t) => t.trim())
+const seccion = (page, nombre) => page.locator('.a-nav').getByRole('link', { name: nombre, exact: true })
 async function pagar(page, texto) {
   await page.getByRole('button', { name: 'Continuar al pago' }).click()
   await page.waitForURL((u) => u.hash === '#/checkout')
@@ -199,16 +202,16 @@ await prueba('sin sesión: /admin redirige y la API responde 401; lo público si
 
 log('=== Personal: cada rol ve solo sus pestañas')
 const ROLES = [
-  ['admin@hauspe.pe', 'Administrador', 'AD1', ['Barista', 'Dark store', 'Trazabilidad', 'Lotes IoT', 'CRM', 'Base de datos', 'Cosecha', 'Telemetría', 'Recordatorios', 'QR por empaque']],
+  ['admin@hauspe.pe', 'Administrador', 'AD1', ['Resumen', 'Barista', 'Dark store', 'Trazabilidad', 'Cosecha', 'Lotes IoT', 'Telemetría', 'QR por empaque', 'CRM', 'Recordatorios', 'Base de datos']],
   ['barista@hauspe.pe', 'Barista', 'BA1', ['Barista', 'CRM']],
   ['almacen@hauspe.pe', 'Dark store (reparto)', 'RD1', ['Dark store', 'Recordatorios']],
-  ['inspector@hauspe.pe', 'Inspector de cosecha', 'IC1', ['Trazabilidad', 'Lotes IoT', 'Cosecha', 'Telemetría', 'QR por empaque']],
+  ['inspector@hauspe.pe', 'Inspector de cosecha', 'IC1', ['Trazabilidad', 'Cosecha', 'Lotes IoT', 'Telemetría', 'QR por empaque']],
 ]
 for (const [correo, etiqueta, codigo, tabs] of ROLES) {
   await prueba(`rol ${codigo} (${correo}): pestañas, barra propia y cierre de sesión`, async () => {
     await entrarPersonal(page, correo)
     esperar(JSON.stringify(await pestanas(page)) === JSON.stringify(tabs), 'pestañas: ' + (await pestanas(page)).join(', '))
-    const barra = await page.locator('.adminbar').innerText()
+    const barra = await page.locator('.a-side').innerText()
     esperar(barra.includes(etiqueta) && barra.includes(codigo), 'la barra no muestra rol y código: ' + barra.replace(/\s+/g, ' '))
     esperar(!(await page.locator('.nav').count()), 'el área del personal usa la barra de la tienda')
     const s = (await yo(page)).json
@@ -238,7 +241,7 @@ await prueba('el rol limita también la API (barista, dark store e inspector)', 
 })
 await prueba('el inspector solo firma con su propio código (IC1)', async () => {
   await entrarPersonal(page, 'inspector@hauspe.pe')
-  await page.getByRole('tab', { name: 'Trazabilidad' }).click()
+  await seccion(page, 'Trazabilidad').click()
   const sel = page.getByLabel('Inspector que firma')
   await sel.waitFor()
   esperar(await sel.isDisabled() && (await sel.inputValue()) === 'IC1' && (await sel.locator('option').count()) === 1, 'el inspector puede elegir otro código')
@@ -274,26 +277,28 @@ log('=== Panel interno (como administrador)')
 await prueba('venta de 2 lattes en barra descuenta insumos en MySQL', async () => {
   await entrarPersonal(page, 'admin@hauspe.pe')
   const antes = (await uno("SELECT stock FROM Insumo WHERE nombre = 'Leche entera'")).stock
-  await page.getByRole('tab', { name: 'Barista' }).click()
-  const sel = page.locator('.dbx__pos').getByLabel('Producto')
+  await seccion(page, 'Barista').click()
+  await page.getByRole('button', { name: 'Nueva venta en barra' }).click()
+  const sel = page.getByRole('dialog').getByLabel('Producto')
   const etiqueta = await sel.locator('option').filter({ hasText: 'Latte 12 oz' }).first().innerText()
   await sel.selectOption({ label: etiqueta.trim() })
-  await page.locator('.dbx__pos').getByLabel('Cantidad').fill('2')
+  await page.getByRole('dialog').getByLabel('Cantidad').fill('2')
   await page.getByRole('button', { name: 'Cobrar en efectivo' }).click()
   await page.getByText(/Se descontó del almacén/).waitFor()
+  await page.keyboard.press('Escape')
   const despues = (await uno("SELECT stock FROM Insumo WHERE nombre = 'Leche entera'")).stock
   esperar(antes - despues === 600, `leche descontada: ${antes - despues} ml`)
   log('        leche: ' + antes + ' → ' + despues + ' ml')
 })
 await prueba('el pedido de la boleta aparece en la cola del barista y avanza', async () => {
   await page.getByText(codigos.boleta).first().waitFor()
-  await page.locator('.ops__item', { hasText: codigos.boleta }).getByRole('button', { name: 'Empezar a preparar' }).click()
-  await page.locator('.ops__item', { hasText: codigos.boleta }).getByText('En preparación').waitFor()
+  await page.locator('.a-ticket', { hasText: codigos.boleta }).getByRole('button', { name: 'Empezar a preparar' }).click()
+  await page.locator('[data-col="EN_PREPARACION"]', { hasText: codigos.boleta }).waitFor()
   const p = await uno('SELECT estado FROM Pedido WHERE codigo = ?', [codigos.boleta])
   esperar(p.estado === 'EN_PREPARACION', 'estado en MySQL: ' + p.estado)
 })
 await prueba('firma de etapa (administrador) y verificación de la cadena', async () => {
-  await page.getByRole('tab', { name: 'Trazabilidad' }).click()
+  await seccion(page, 'Trazabilidad').click()
   await page.getByLabel('Ubicación').fill('Miraflores, Lima')
   await page.getByRole('button', { name: 'Firmar y sellar etapa' }).click()
   await page.getByText(/Bloque \d+ sellado por RD1/).waitFor()
@@ -301,9 +306,9 @@ await prueba('firma de etapa (administrador) y verificación de la cadena', asyn
   await page.getByText(/Cadena íntegra: \d+ bloques/).waitFor()
 })
 await prueba('lotes IoT y CRM leen de MySQL', async () => {
-  await page.getByRole('tab', { name: 'Lotes IoT' }).click()
+  await seccion(page, 'Lotes IoT').click()
   await page.getByText('HP-CASA-0925').first().waitFor()
-  await page.getByRole('tab', { name: 'CRM' }).click()
+  await seccion(page, 'CRM').click()
   await page.getByText('Historial de pedidos').waitFor()
 })
 
@@ -321,13 +326,14 @@ await prueba('pasaporte de un costal (vista técnica)', async () => {
 
 log('=== Base de datos y pruebas (como administrador)')
 await prueba('Panel → Base de datos muestra la conexión a MySQL con Prisma', async () => {
-  await ir(page, '/admin?tab=bd')
+  await ir(page, '/admin/base-de-datos')
   await page.getByText(/Conectado a MySQL 8\.0 mediante Prisma ORM/).waitFor()
-  await page.getByText(/Modelo de datos \(schema\.prisma\)/).waitFor()
-  await page.getByRole('button', { name: /Ver los \d+ modelos/ }).click()
-  await page.getByText('DetallePedido', { exact: false }).first().waitFor()
+  await page.getByRole('tab', { name: 'Modelo Prisma' }).click()
+  await page.getByText(/Hay \d+ modelos y \d+ relaciones/).waitFor()
+  await page.locator('.a-models summary', { hasText: 'DetallePedido' }).waitFor()
 })
 await prueba('consola SQL: SELECT funciona y DELETE se rechaza', async () => {
+  await page.getByRole('tab', { name: 'Consola SQL' }).click()
   await page.getByRole('button', { name: 'Ejecutar (Ctrl + Enter)' }).click()
   await page.getByText(/fila\(s\)/).first().waitFor()
   await page.getByRole('button', { name: 'Intentar escribir (se rechaza)' }).click()
@@ -339,7 +345,8 @@ await prueba('consola SQL: SELECT funciona y DELETE se rechaza', async () => {
 await prueba('las 25 pruebas en verde ejecutadas como ADMIN (transacción con ROLLBACK)', async () => {
   const foto = () => uno('SELECT (SELECT COUNT(*) FROM Cliente) c, (SELECT COUNT(*) FROM Pedido) p, (SELECT SUM(stock) FROM Insumo) s')
   const antes = await foto()
-  await page.getByRole('button', { name: 'Ejecutar pruebas' }).click()
+  await page.getByRole('tab', { name: 'Pruebas' }).click()
+  await page.getByRole('button', { name: /Ejecutar pruebas/ }).click()
   await page.getByText(/25 de 25 pruebas superadas/).waitFor({ timeout: 300000 })
   esperar(JSON.stringify(antes) === JSON.stringify(await foto()), 'las pruebas ensuciaron la base')
   esperar(await page.getByText(/ROLLBACK aplicado/).count(), 'sin aviso de rollback')
@@ -365,7 +372,7 @@ await prueba('modo local: el personal entra con los mismos roles y pestañas', a
   await ir(off, '/admin/login')
   await off.getByRole('button', { name: 'Barista' }).click()
   await off.getByRole('button', { name: 'Ingresar al panel' }).click()
-  await off.getByRole('tab', { name: 'CRM' }).waitFor()
+  await seccion(off, 'CRM').waitFor()
   esperar(JSON.stringify(await pestanas(off)) === JSON.stringify(['Barista', 'CRM']), 'pestañas locales: ' + (await pestanas(off)).join(', '))
   await off.getByRole('button', { name: 'Cerrar sesión' }).click()
   await off.waitForURL((u) => u.hash === '#/admin/login')

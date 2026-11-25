@@ -14,7 +14,7 @@ import Checkout from './pages/Checkout'
 import Order from './pages/Order'
 import QrPassport from './pages/QrPassport'
 import Matcher from './pages/Matcher'
-import Ops from './pages/Ops'
+import { PanelInicio, PanelSeccion } from './pages/admin/Panel'
 import AdminLayout from './components/AdminLayout'
 import AdminLogin from './pages/AdminLogin'
 import { RedirigirAlPanel, SoloCliente, SoloPersonal } from './components/Rutas'
@@ -57,7 +57,8 @@ export default function App() {
             </Route>
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="login" element={<AdminLogin />} />
-              <Route index element={<SoloPersonal><Ops /></SoloPersonal>} />
+              <Route index element={<SoloPersonal><PanelInicio /></SoloPersonal>} />
+              <Route path=":seccion" element={<SoloPersonal><PanelSeccion /></SoloPersonal>} />
             </Route>
           </Routes>
         </CartProvider>
